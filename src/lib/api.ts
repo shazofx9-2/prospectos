@@ -255,7 +255,7 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data)
       }),
-    send: (data: { relatedId: string; relatedType: 'prospect' | 'client'; senderAccountId?: string; templateId?: string; subject: string; body: string }) =>
+    send: (data: { relatedId: string; relatedType: 'prospect' | 'client'; recipientEmail?: string; senderAccountId?: string; templateId?: string; subject: string; body: string }) =>
       request<{ success: boolean; message: string; emailLog: any }>('/api/follow-ups/send', {
         method: 'POST',
         body: JSON.stringify(data)

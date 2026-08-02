@@ -17,11 +17,14 @@ import {
   AlertCircle,
   FolderOpen,
   ArrowUpRight,
-  Edit2
+  Edit2,
+  Mail,
+  Send
 } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { Client, Task, FileMetadata, ClientStatus } from '../types.js';
 import { AppleToast } from './AppleToast.jsx';
+import { SendEmailModal } from './SendEmailModal.jsx';
 import { formatCurrency, getCurrencySymbol } from '../lib/currency.js';
 
 const CLIENT_STATUSES: ClientStatus[] = [
@@ -51,6 +54,7 @@ export default function ClientsView() {
   // Client form state
   const [showClientForm, setShowClientForm] = useState(false);
   const [clientFormMode, setClientFormMode] = useState<'create' | 'edit'>('create');
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [cBusinessName, setCBusinessName] = useState('');
   const [cContactName, setCContactName] = useState('');
   const [cEmail, setCEmail] = useState('');
@@ -72,6 +76,27 @@ export default function ClientsView() {
   const [cFollowUpPreset, setCFollowUpPreset] = useState('none');
   const [cCustomFollowUpDate, setCCustomFollowUpDate] = useState('');
   const [cFollowUpNote, setCFollowUpNote] = useState('');
+
+  // Follow-Up Email Modal States
+  const [showSendEmailModal, setShowSendEmailModal] = useState(false);
+  const [sendEmailContact, setSendEmailContact] = useState<{
+    id: string;
+    relatedType: 'prospect' | 'client';
+    contactName: string;
+    businessName: string;
+    email: string;
+  } | null>(null);
+
+  const openClientEmailModal = (c: Client) => {
+    setSendEmailContact({
+      id: c.id,
+      relatedType: 'client',
+      contactName: c.contactName || c.businessName,
+      businessName: c.businessName,
+      email: c.email || ''
+    });
+    setShowSendEmailModal(true);
+  };
 
   // Delete Confirmation state
   const [clientToDelete, setClientToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -250,21 +275,26 @@ export default function ClientsView() {
 
     try {
       if (clientFormMode === 'create') {
-        await api.clients.create(payload);
+        const created = await api.clients.create(payload);
+        setSelectedClient(created);
         triggerToast('New client successfully onboarded!');
-      } else if (selectedClient) {
-        await api.clients.update(selectedClient.id, payload);
+      } else if (editingClientId) {
+        const updated = await api.clients.update(editingClientId, payload);
+        if (selectedClient?.id === editingClientId) {
+          setSelectedClient(updated);
+        }
         triggerToast('Client attributes synchronized.');
       }
       setShowClientForm(false);
       resetClientFormFields();
-      loadClients();
+      await loadClients();
     } catch (err: any) {
       alert(err.message || 'Error saving client');
     }
   };
 
   const resetClientFormFields = () => {
+    setEditingClientId(null);
     setCBusinessName('');
     setCContactName('');
     setCEmail('');
@@ -288,6 +318,7 @@ export default function ClientsView() {
 
   const openEditClient = (c: Client) => {
     setClientFormMode('edit');
+    setEditingClientId(c.id);
     setCBusinessName(c.businessName);
     setCContactName(c.contactName);
     setCEmail(c.email);
@@ -538,6 +569,13 @@ export default function ClientsView() {
                       <td className="p-3.5 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
                           <button
+                            onClick={() => openClientEmailModal(c)}
+                            className="p-1 hover:bg-blue-500/10 text-blue-400 hover:text-blue-300 rounded inline-flex cursor-pointer"
+                            title="Send Email Follow-Up"
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={() => openClientFollowUpModal(c)}
                             className="p-1 hover:bg-amber-500/10 text-amber-400 hover:text-amber-300 rounded inline-flex cursor-pointer"
                             title="Schedule Follow-Up"
@@ -582,13 +620,28 @@ export default function ClientsView() {
                   <div>
                     <h3 className="text-base font-bold text-white">{selectedClient.businessName}</h3>
                     <p className="text-[10px] text-zinc-500 mt-0.5">{selectedClient.contactName} • {selectedClient.email || 'No email'}</p>
+                    <button
+                      onClick={() => openClientEmailModal(selectedClient)}
+                      className="mt-2.5 px-3 py-1.5 bg-white text-black font-bold text-[11px] rounded-lg hover:bg-zinc-200 flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+                    >
+                      <Mail className="w-3.5 h-3.5" /> Send Email Follow-Up
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setSelectedClient(null)}
-                    className="p-1 text-zinc-500 hover:text-white rounded hover:bg-white/5 cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEditClient(selectedClient)}
+                      className="p-1 text-zinc-400 hover:text-white rounded hover:bg-white/5 cursor-pointer"
+                      title="Edit Client Attributes"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setSelectedClient(null)}
+                      className="p-1 text-zinc-500 hover:text-white rounded hover:bg-white/5 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   <span className="bg-white/5 text-[9px] text-zinc-300 px-2 py-0.5 rounded border border-white/5">
@@ -1124,6 +1177,20 @@ export default function ClientsView() {
         </motion.div>
       )}
     </AnimatePresence>
+
+    {/* Send Email Follow-Up Modal */}
+    <SendEmailModal
+      isOpen={showSendEmailModal}
+      onClose={() => {
+        setShowSendEmailModal(false);
+        setSendEmailContact(null);
+      }}
+      contact={sendEmailContact}
+      onSuccess={(msg) => {
+        triggerToast(msg);
+        loadClients();
+      }}
+    />
   </motion.div>
 );
 }

@@ -35,7 +35,10 @@ import {
   CheckCircle2,
   Instagram,
   ExternalLink,
-  Copy
+  Copy,
+  FileText,
+  ShieldCheck,
+  Scale
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -46,6 +49,8 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
   const [activeTab, setActiveTab] = useState<'pipeline' | 'crm' | 'tasks' | 'emails' | 'analytics'>('tasks');
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [copiedToast, setCopiedToast] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -202,8 +207,8 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
       {/* TOP NAVIGATION BAR - STICKY FROSTED APPLE GLASS UI */}
       <header className={`sticky top-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-[#0f1011]/60 backdrop-blur-2xl backdrop-saturate-180 border-b border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)]'
-          : 'bg-[#0f1011]/20 backdrop-blur-md border-b border-white/5'
+          ? 'bg-[#0f1011]/30 backdrop-blur-xl border-b border-white/10 shadow-lg'
+          : 'bg-transparent backdrop-blur-sm border-b border-white/5'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Brand Logo */}
@@ -846,6 +851,20 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
             <a href="#faqs" onClick={(e) => scrollToSection(e, 'faqs')} className="hover:text-white transition-colors cursor-pointer">FAQs</a>
             <button
               type="button"
+              onClick={() => setShowPrivacyModal(true)}
+              className="hover:text-white transition-colors cursor-pointer text-zinc-300"
+            >
+              Privacy Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowTermsModal(true)}
+              className="hover:text-white transition-colors cursor-pointer text-zinc-300"
+            >
+              Terms of Service
+            </button>
+            <button
+              type="button"
               onClick={() => setShowContactModal(true)}
               className="hover:text-white transition-colors cursor-pointer font-semibold text-zinc-300 flex items-center gap-1.5"
             >
@@ -869,8 +888,24 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
         </div>
 
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-zinc-500 border-t border-white/5 pt-6">
-          <div>
-            © {new Date().getFullYear()} ProspectOS Inc. All rights reserved.
+          <div className="flex items-center gap-4 flex-wrap">
+            <span>© {new Date().getFullYear()} ProspectOS Inc. All rights reserved.</span>
+            <span className="text-zinc-700">•</span>
+            <button
+              type="button"
+              onClick={() => setShowPrivacyModal(true)}
+              className="hover:text-white transition-colors cursor-pointer text-zinc-400"
+            >
+              Privacy Policy
+            </button>
+            <span className="text-zinc-700">•</span>
+            <button
+              type="button"
+              onClick={() => setShowTermsModal(true)}
+              className="hover:text-white transition-colors cursor-pointer text-zinc-400"
+            >
+              Terms of Service
+            </button>
           </div>
           <div className="flex items-center gap-6 text-zinc-400">
             <a
@@ -957,6 +992,212 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
 
               <div className="text-center text-[11px] text-zinc-500 pt-2 border-t border-white/5">
                 Our support team typically responds within 24 hours.
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* PRIVACY POLICY MODAL */}
+        {showPrivacyModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#18191b] border border-white/15 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl relative overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-white/10 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif font-light text-xl text-white">Privacy Policy</h3>
+                    <p className="text-xs text-zinc-400">Effective Date: August 1, 2026 • ProspectOS Inc.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPrivacyModal(false)}
+                  className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body Scrollable */}
+              <div className="p-6 overflow-y-auto space-y-5 text-xs sm:text-sm text-zinc-300 font-light leading-relaxed">
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">1. Overview & Commitment</h4>
+                  <p>
+                    At ProspectOS, accessible from app.prospectos.com, we prioritize your privacy. This Privacy Policy outlines the types of information we collect, how we use it, and the strict safeguards we enforce to keep your sales and account data protected.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">2. Information We Collect</h4>
+                  <ul className="list-disc list-inside space-y-1 text-zinc-400 pl-1">
+                    <li><strong className="text-zinc-200">Account Credentials:</strong> Email address, display name, and securely hashed passwords upon registration.</li>
+                    <li><strong className="text-zinc-200">Workspace Data:</strong> Leads, deal stages, client contact cards, task checklists, revenue metrics, and custom follow-up email templates created within your account.</li>
+                    <li><strong className="text-zinc-200">Google Workspace Data (OAuth):</strong> When you link Google Calendar or Gmail, we request scoped access strictly to sync tasks/events to your calendar and send requested email follow-ups on your behalf.</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">3. How We Use Your Data</h4>
+                  <p>
+                    We process your information exclusively to operate and deliver ProspectOS core features:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-zinc-400 pl-1 mt-1">
+                    <li>To organize your sales pipeline, tasks, and client records.</li>
+                    <li>To sync user-created tasks directly to your connected Google Calendar.</li>
+                    <li>To dispatch follow-up emails via Gmail when you click "Send Follow-Up".</li>
+                    <li>To provide customer support and service updates.</li>
+                  </ul>
+                  <p className="mt-2 text-emerald-400 font-normal">
+                    We DO NOT sell, rent, monetize, or share your personal or workspace data with advertisers or unauthorized third parties.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">4. Google API Limited Use Compliance</h4>
+                  <p className="p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-zinc-300">
+                    ProspectOS’s use and transfer to any other app of information received from Google APIs will adhere to the <strong className="text-white">Google API Services User Data Policy</strong>, including the Limited Use requirements. Your Google credentials and tokens are encrypted at rest and never shared.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">5. Data Retention & Deletion</h4>
+                  <p>
+                    Your data is retained for as long as your account remains active. You can request complete deletion of your account, workspace data, and OAuth tokens at any time by contacting our support team at <strong className="text-white">prospectos.support@gmail.com</strong>.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">6. Contact Us</h4>
+                  <p>
+                    If you have questions or concerns regarding this Privacy Policy, please reach out to us at <a href="mailto:prospectos.support@gmail.com" className="text-blue-400 underline">prospectos.support@gmail.com</a>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-white/10 flex justify-end shrink-0 bg-black/40">
+                <button
+                  type="button"
+                  onClick={() => setShowPrivacyModal(false)}
+                  className="px-5 py-2 rounded-lg bg-white text-black font-medium text-xs hover:bg-zinc-200 cursor-pointer transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* TERMS OF SERVICE MODAL */}
+        {showTermsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#18191b] border border-white/15 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl relative overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-white/10 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                    <Scale className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif font-light text-xl text-white">Terms of Service</h3>
+                    <p className="text-xs text-zinc-400">Effective Date: August 1, 2026 • ProspectOS Inc.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(false)}
+                  className="text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body Scrollable */}
+              <div className="p-6 overflow-y-auto space-y-5 text-xs sm:text-sm text-zinc-300 font-light leading-relaxed">
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">1. Acceptance of Terms</h4>
+                  <p>
+                    By creating an account, accessing, or using ProspectOS ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree with these Terms, you must not access or use the Service.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">2. Description of Service</h4>
+                  <p>
+                    ProspectOS provides a cloud-based sales workspace, pipeline management tool, client directory, task organization system, Google Calendar auto-synchronization, and Gmail follow-up email features for sales professionals and agency teams.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">3. User Responsibilities & Acceptable Use</h4>
+                  <p>
+                    You are solely responsible for maintaining the security of your account login information. You agree not to:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-zinc-400 pl-1 mt-1">
+                    <li>Use the Service to transmit unsolicited commercial emails (SPAM) or unauthorized bulk communications.</li>
+                    <li>Attempt to reverse engineer, disrupt, or compromise the infrastructure of ProspectOS.</li>
+                    <li>Violate any local, state, or international laws or regulations in connection with your sales activities.</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">4. Third-Party Integrations</h4>
+                  <p>
+                    ProspectOS allows optional integration with third-party services, including Google Calendar and Gmail. Your use of such third-party services is subject to their respective terms and policies. ProspectOS is not responsible for outages or modifications made by third-party providers.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">5. Intellectual Property</h4>
+                  <p>
+                    ProspectOS, its logos, software code, user interface design, and trademarks are the exclusive property of ProspectOS Inc. You retain full ownership of all data, text, and media uploaded into your workspace.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">6. Limitation of Liability</h4>
+                  <p>
+                    ProspectOS is provided on an "AS IS" and "AS AVAILABLE" basis. To the maximum extent permitted by law, ProspectOS Inc. shall not be liable for any indirect, incidental, or consequential damages arising out of your use of or inability to use the Service.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">7. Modifications & Termination</h4>
+                  <p>
+                    We reserve the right to modify these Terms at any time. Continued use of the Service after updates constitutes acceptance of the modified Terms. We may suspend or terminate accounts that violate these Terms.
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-white font-semibold text-sm mb-1">8. Contact Information</h4>
+                  <p>
+                    For any questions regarding these Terms of Service, please contact us at <a href="mailto:prospectos.support@gmail.com" className="text-blue-400 underline">prospectos.support@gmail.com</a>.
+                  </p>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-white/10 flex justify-end shrink-0 bg-black/40">
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(false)}
+                  className="px-5 py-2 rounded-lg bg-white text-black font-medium text-xs hover:bg-zinc-200 cursor-pointer transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </motion.div>
           </div>

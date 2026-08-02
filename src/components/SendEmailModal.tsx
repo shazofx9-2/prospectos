@@ -24,6 +24,7 @@ export function SendEmailModal({ isOpen, onClose, contact, onSuccess }: SendEmai
   const [selectedSenderId, setSelectedSenderId] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   
+  const [recipientEmail, setRecipientEmail] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
@@ -32,6 +33,7 @@ export function SendEmailModal({ isOpen, onClose, contact, onSuccess }: SendEmai
 
   useEffect(() => {
     if (isOpen && contact) {
+      setRecipientEmail(contact.email || '');
       loadData();
     }
   }, [isOpen, contact]);
@@ -135,6 +137,10 @@ export function SendEmailModal({ isOpen, onClose, contact, onSuccess }: SendEmai
 
   async function handleSend() {
     if (!contact) return;
+    if (!recipientEmail.trim()) {
+      setError('Please specify a valid recipient email address');
+      return;
+    }
     if (!subject.trim() || !body.trim()) {
       setError('Please provide a subject line and email body');
       return;
@@ -147,6 +153,7 @@ export function SendEmailModal({ isOpen, onClose, contact, onSuccess }: SendEmai
       const res = await api.followUps.send({
         relatedId: contact.id,
         relatedType: contact.relatedType,
+        recipientEmail: recipientEmail.trim(),
         senderAccountId: selectedSenderId || undefined,
         templateId: selectedTemplateId || undefined,
         subject: subject.trim(),
@@ -154,7 +161,7 @@ export function SendEmailModal({ isOpen, onClose, contact, onSuccess }: SendEmai
       });
 
       if (res.success) {
-        onSuccess(res.message || `Follow-up email sent to ${contact.email || contact.contactName}!`);
+        onSuccess(res.message || `Follow-up email sent to ${recipientEmail.trim()}!`);
         onClose();
       } else {
         setError('Failed to send email. Please try again.');
@@ -225,11 +232,18 @@ export function SendEmailModal({ isOpen, onClose, contact, onSuccess }: SendEmai
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">
-                  To (Recipient)
+                  To (Recipient Email)
                 </label>
-                <div className="px-3.5 py-2.5 bg-zinc-950 border border-white/10 rounded-xl text-sm text-zinc-200 flex items-center justify-between">
-                  <span className="truncate">{contact.email || 'No email specified'}</span>
-                  <Mail className="w-4 h-4 text-zinc-500 shrink-0 ml-2" />
+                <div className="relative flex items-center">
+                  <input
+                    type="email"
+                    required
+                    value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-zinc-950 border border-white/10 rounded-xl text-sm text-zinc-200 focus:outline-none focus:border-white/30 pr-10"
+                    placeholder="name@company.com"
+                  />
+                  <Mail className="w-4 h-4 text-zinc-500 absolute right-3 pointer-events-none" />
                 </div>
               </div>
 

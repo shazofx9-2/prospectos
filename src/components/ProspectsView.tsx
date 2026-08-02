@@ -28,6 +28,7 @@ import {
 import { api } from '../lib/api.js';
 import { Prospect, ProspectStatus } from '../types.js';
 import { AppleToast } from './AppleToast.jsx';
+import { SendEmailModal } from './SendEmailModal.jsx';
 import { formatCurrency, getCurrencySymbol } from '../lib/currency.js';
 
 const STATUS_OPTIONS: ProspectStatus[] = [
@@ -96,6 +97,27 @@ export default function ProspectsView() {
   const [prospectToDelete, setProspectToDelete] = useState<{ id: string; name: string } | null>(null);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Send Email Follow-Up Modal state
+  const [showSendEmailModal, setShowSendEmailModal] = useState(false);
+  const [sendEmailContact, setSendEmailContact] = useState<{
+    id: string;
+    relatedType: 'prospect' | 'client';
+    contactName: string;
+    businessName: string;
+    email: string;
+  } | null>(null);
+
+  const openProspectEmailModal = (p: Prospect) => {
+    setSendEmailContact({
+      id: p.id,
+      relatedType: 'prospect',
+      contactName: p.ownerName || p.businessName,
+      businessName: p.businessName,
+      email: p.email || ''
+    });
+    setShowSendEmailModal(true);
+  };
 
   // Quick Follow-Up Schedule Modal states
   const [followUpProspectModal, setFollowUpProspectModal] = useState<Prospect | null>(null);
@@ -682,6 +704,13 @@ export default function ProspectsView() {
                         </div>
                         <div className="flex gap-1">
                           <button
+                            onClick={() => openProspectEmailModal(p)}
+                            className="p-1 hover:bg-blue-500/10 rounded text-blue-400 hover:text-blue-300 cursor-pointer"
+                            title="Send Email Follow-Up"
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={() => openQuickFollowUp(p)}
                             className="p-1 hover:bg-amber-500/10 rounded text-amber-400 hover:text-amber-300 cursor-pointer"
                             title="Schedule Follow-Up"
@@ -835,6 +864,13 @@ export default function ProspectsView() {
                           <td className="p-3.5 text-zinc-500 text-[10px]">{p.source}</td>
                           <td className="p-3.5 text-right space-x-1 shrink-0">
                             <button
+                              onClick={() => openProspectEmailModal(p)}
+                              className="p-1 hover:bg-blue-500/10 text-blue-400 hover:text-blue-300 rounded inline-flex cursor-pointer"
+                              title="Send Email Follow-Up"
+                            >
+                              <Mail className="w-3.5 h-3.5" />
+                            </button>
+                            <button
                               onClick={() => openQuickFollowUp(p)}
                               className="p-1 hover:bg-amber-500/10 text-amber-400 hover:text-amber-300 rounded inline-flex cursor-pointer"
                               title="Schedule Follow-Up"
@@ -913,6 +949,13 @@ export default function ProspectsView() {
                       </select>
 
                       <div className="flex gap-1.5">
+                        <button
+                          onClick={() => openProspectEmailModal(p)}
+                          className="p-1.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:text-blue-300 hover:bg-blue-500/20 rounded-lg cursor-pointer"
+                          title="Send Email Follow-Up"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           onClick={() => openQuickFollowUp(p)}
                           className="p-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:text-amber-300 hover:bg-amber-500/20 rounded-lg cursor-pointer"
@@ -1748,6 +1791,19 @@ export default function ProspectsView() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Send Email Follow-Up Modal */}
+      <SendEmailModal
+        isOpen={showSendEmailModal}
+        onClose={() => {
+          setShowSendEmailModal(false);
+          setSendEmailContact(null);
+        }}
+        contact={sendEmailContact}
+        onSuccess={(msg) => {
+          triggerNotification(msg);
+          loadProspects();
+        }}
+      />
     </div>
   );
 }

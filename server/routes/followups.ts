@@ -416,38 +416,48 @@ router.delete('/sender-accounts/:id', (req: AuthenticatedRequest, res: Response)
 router.post('/send', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { relatedId, relatedType, senderAccountId, templateId, subject, body } = req.body;
+    const { relatedId, relatedType, recipientEmail: customRecipientEmail, senderAccountId, templateId, subject, body } = req.body;
 
     if (!relatedId || !subject || !body) {
       return res.status(400).json({ error: 'Recipient ID, subject, and body are required' });
     }
 
     // Find contact
-    let recipientEmail = '';
+    let recipientEmail = customRecipientEmail ? customRecipientEmail.trim() : '';
     let contactName = '';
 
     if (relatedType === 'client') {
       const client = DB.query('clients').find((c) => c.id === relatedId && c.userId === userId);
       if (!client) return res.status(404).json({ error: 'Client record not found' });
-      recipientEmail = client.email;
+      if (!recipientEmail) recipientEmail = client.email;
       contactName = client.contactName || client.businessName;
 
-      // Update follow-up status to done
-      DB.update('clients', client.id, {
+      // Sync recipient email to database if provided and updated
+      const clientUpdates: any = {
         followUpStatus: 'done',
         nextFollowUpDate: null
-      });
+      };
+      if (recipientEmail && recipientEmail !== client.email) {
+        clientUpdates.email = recipientEmail;
+      }
+
+      DB.update('clients', client.id, clientUpdates);
     } else {
       const prospect = DB.query('prospects').find((p) => p.id === relatedId && p.userId === userId);
       if (!prospect) return res.status(404).json({ error: 'Prospect record not found' });
-      recipientEmail = prospect.email;
+      if (!recipientEmail) recipientEmail = prospect.email;
       contactName = prospect.ownerName || prospect.businessName;
 
-      // Update follow-up status to done
-      DB.update('prospects', prospect.id, {
+      // Sync recipient email to database if provided and updated
+      const prospectUpdates: any = {
         followUpStatus: 'done',
         nextFollowUpDate: null
-      });
+      };
+      if (recipientEmail && recipientEmail !== prospect.email) {
+        prospectUpdates.email = recipientEmail;
+      }
+
+      DB.update('prospects', prospect.id, prospectUpdates);
     }
 
     // Get sender account
