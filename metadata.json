@@ -1,0 +1,6 @@
+{
+  "name": "ProspectOS - Business Dashboard",
+  "description": "An elite, high-performance sales CRM and pipeline orchestrator designed for high-growth teams. Track prospects, manage client deliveries, monitor conversion metrics, and run sales operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

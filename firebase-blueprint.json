@@ -1,0 +1,34 @@
+{
+  "entities": {
+    "users": {
+      "fields": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" }
+      }
+    },
+    "prospects": {
+      "fields": {
+        "userId": { "type": "string" },
+        "businessName": { "type": "string" },
+        "contactName": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "clients": {
+      "fields": {
+        "userId": { "type": "string" },
+        "businessName": { "type": "string" },
+        "contactName": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "tasks": {
+      "fields": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "isCompleted": { "type": "boolean" }
+      }
+    }
+  }
+}
