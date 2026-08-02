@@ -127,8 +127,8 @@ router.post('/sync-google-calendar', async (req: AuthenticatedRequest, res: Resp
   }
 });
 
-// PUT /api/tasks/:id
-router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
+// PUT or PATCH /api/tasks/:id
+const handleUpdateTask = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { id } = req.params;
@@ -168,7 +168,10 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
   } catch (e: any) {
     res.status(500).json({ error: e.message || 'Error updating task' });
   }
-});
+};
+
+router.put('/:id', handleUpdateTask);
+router.patch('/:id', handleUpdateTask);
 
 // DELETE /api/tasks/:id
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {

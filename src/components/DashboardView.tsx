@@ -75,9 +75,9 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
 
   useEffect(() => {
     async function loadDashboard() {
-      if (!data) setLoading(true);
+      setLoading(true);
       try {
-        const [analyticsRes, prospectsRes, clientsRes, tasksRes, remindersRes, notesRes, followUpsRes] = await Promise.all([
+        const [analyticsRes, prospectsRes, clientsRes, tasksRes, remindersRes, notesRes, followUpsRes] = await Promise.allSettled([
           api.analytics.get(),
           api.prospects.list(),
           api.clients.list(),
@@ -87,17 +87,59 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
           api.followUps.list()
         ]);
 
-        setData(analyticsRes);
-        setProspects(prospectsRes);
-        setClients(clientsRes);
-        setTasks(tasksRes);
-        setReminders(remindersRes);
-        setNotes(notesRes);
-        setFollowUps(followUpsRes);
-        if (followUpsRes.overdue.length === 0 && followUpsRes.today.length > 0) {
+        const pr = prospectsRes.status === 'fulfilled' && Array.isArray(prospectsRes.value) ? prospectsRes.value : [];
+        const cl = clientsRes.status === 'fulfilled' && Array.isArray(clientsRes.value) ? clientsRes.value : [];
+        const tk = tasksRes.status === 'fulfilled' && Array.isArray(tasksRes.value) ? tasksRes.value : [];
+        const rm = remindersRes.status === 'fulfilled' && Array.isArray(remindersRes.value) ? remindersRes.value : [];
+        const nt = notesRes.status === 'fulfilled' && Array.isArray(notesRes.value) ? notesRes.value : [];
+        const fu = followUpsRes.status === 'fulfilled' && followUpsRes.value ? followUpsRes.value : { overdue: [], today: [], upcoming: [], totalCount: 0 };
+
+        setProspects(pr);
+        setClients(cl);
+        setTasks(tk);
+        setReminders(rm);
+        setNotes(nt);
+        setFollowUps(fu);
+
+        if (fu.overdue && fu.overdue.length === 0 && fu.today && fu.today.length > 0) {
           setActiveFollowUpTab('today');
-        } else if (followUpsRes.overdue.length === 0 && followUpsRes.today.length === 0 && followUpsRes.upcoming.length > 0) {
+        } else if (fu.overdue && fu.overdue.length === 0 && (!fu.today || fu.today.length === 0) && fu.upcoming && fu.upcoming.length > 0) {
           setActiveFollowUpTab('upcoming');
+        }
+
+        if (analyticsRes.status === 'fulfilled' && analyticsRes.value && analyticsRes.value.metrics) {
+          setData(analyticsRes.value);
+        } else {
+          // Construct client-side fallback analytics
+          const mrr = cl.reduce((acc, c) => acc + (c.monthlyRetainer || 0), 0);
+          const upfront = cl.reduce((acc, c) => acc + (c.contractValue || 0), 0);
+          setData({
+            metrics: {
+              totalProspects: pr.length,
+              activeProspects: pr.filter((p) => !['Landed', 'Failed'].includes(p.status)).length,
+              totalClients: cl.length,
+              activeClients: cl.filter((c) => c.status === 'Active').length,
+              landedDeals: pr.filter((p) => p.status === 'Landed').length,
+              failedDeals: pr.filter((p) => p.status === 'Failed').length,
+              pendingFollowups: rm.filter((r) => !r.isCompleted).length,
+              mrr,
+              totalUpfront: upfront,
+              totalRevenueGenerated: upfront + mrr,
+              totalContractValue: upfront,
+              conversionRate: pr.length > 0 ? Number(((pr.filter((p) => p.status === 'Landed').length / pr.length) * 100).toFixed(1)) : 0,
+              winRate: 0,
+              retentionRate: 100
+            },
+            charts: {
+              pipelineFunnel: [],
+              topLeadSources: [],
+              topIndustries: [],
+              topCountries: [],
+              monthlyProspectGrowth: [],
+              monthlyRevenueTrend: [],
+              wonVsLost: []
+            }
+          });
         }
       } catch (e) {
         console.error('Error loading dashboard:', e);
@@ -108,7 +150,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     loadDashboard();
   }, []);
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="flex flex-col gap-6 p-6">
         {/* Loading Skeletons */}
@@ -126,7 +168,31 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
     );
   }
 
-  const { metrics, charts } = data;
+  const metrics = data?.metrics || {
+    totalProspects: 0,
+    activeProspects: 0,
+    totalClients: 0,
+    activeClients: 0,
+    landedDeals: 0,
+    failedDeals: 0,
+    pendingFollowups: 0,
+    mrr: 0,
+    totalUpfront: 0,
+    totalRevenueGenerated: 0,
+    totalContractValue: 0,
+    conversionRate: 0,
+    winRate: 0,
+    retentionRate: 100
+  };
+  const charts = data?.charts || {
+    pipelineFunnel: [],
+    topLeadSources: [],
+    topIndustries: [],
+    topCountries: [],
+    monthlyProspectGrowth: [],
+    monthlyRevenueTrend: [],
+    wonVsLost: []
+  };
 
   return (
     <motion.div

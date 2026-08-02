@@ -56,8 +56,8 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// PUT /api/notes/:id
-router.put('/:id', (req: AuthenticatedRequest, res: Response) => {
+// PUT or PATCH /api/notes/:id
+const handleUpdateNote = (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { id } = req.params;
@@ -84,7 +84,10 @@ router.put('/:id', (req: AuthenticatedRequest, res: Response) => {
   } catch (e: any) {
     res.status(500).json({ error: e.message || 'Error updating note' });
   }
-});
+};
+
+router.put('/:id', handleUpdateNote);
+router.patch('/:id', handleUpdateNote);
 
 // DELETE /api/notes/:id
 router.delete('/:id', (req: AuthenticatedRequest, res: Response) => {

@@ -34,14 +34,47 @@ export default function AnalyticsView() {
   const [data, setData] = useState<AnalyticsPayload | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const emptyAnalytics: AnalyticsPayload = {
+    metrics: {
+      totalProspects: 0,
+      activeProspects: 0,
+      totalClients: 0,
+      activeClients: 0,
+      landedDeals: 0,
+      failedDeals: 0,
+      pendingFollowups: 0,
+      mrr: 0,
+      totalUpfront: 0,
+      totalRevenueGenerated: 0,
+      totalContractValue: 0,
+      conversionRate: 0,
+      winRate: 0,
+      retentionRate: 100
+    },
+    charts: {
+      pipelineFunnel: [],
+      topLeadSources: [],
+      topIndustries: [],
+      topCountries: [],
+      monthlyProspectGrowth: [],
+      monthlyRevenueTrend: [],
+      wonVsLost: []
+    }
+  };
+
   useEffect(() => {
     async function loadAnalytics() {
-      if (!data) setLoading(true);
+      setLoading(true);
       try {
         const res = await api.analytics.get();
-        setData(res);
+        if (res && res.metrics) {
+          setData(res);
+        } else {
+          setData(emptyAnalytics);
+        }
       } catch (e) {
         console.error('Error fetching analytics:', e);
+        setData(emptyAnalytics);
       } finally {
         setLoading(false);
       }
@@ -49,7 +82,7 @@ export default function AnalyticsView() {
     loadAnalytics();
   }, []);
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="flex flex-col gap-6 p-6">
         <div className="h-10 w-48 bg-white/5 rounded animate-pulse" />
@@ -66,7 +99,9 @@ export default function AnalyticsView() {
     );
   }
 
-  const { metrics, charts } = data;
+  const activeData = data || emptyAnalytics;
+  const metrics = activeData.metrics;
+  const charts = activeData.charts;
 
   const COLORS = ['#ffffff', '#a1a1aa', '#71717a', '#52525b', '#3f3f46', '#27272a'];
   const STATUS_COLORS: Record<string, string> = {

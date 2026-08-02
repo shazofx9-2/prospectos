@@ -60,8 +60,8 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// PUT /api/reminders/:id
-router.put('/:id', (req: AuthenticatedRequest, res: Response) => {
+// PUT or PATCH /api/reminders/:id
+const handleUpdateReminder = (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { id } = req.params;
@@ -87,7 +87,10 @@ router.put('/:id', (req: AuthenticatedRequest, res: Response) => {
   } catch (e: any) {
     res.status(500).json({ error: e.message || 'Error updating reminder' });
   }
-});
+};
+
+router.put('/:id', handleUpdateReminder);
+router.patch('/:id', handleUpdateReminder);
 
 // DELETE /api/reminders/:id
 router.delete('/:id', (req: AuthenticatedRequest, res: Response) => {

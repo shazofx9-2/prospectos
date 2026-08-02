@@ -77,8 +77,8 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// PUT /api/clients/:id
-router.put('/:id', (req: AuthenticatedRequest, res: Response) => {
+// PUT or PATCH /api/clients/:id
+const handleUpdateClient = (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { id } = req.params;
@@ -107,7 +107,10 @@ router.put('/:id', (req: AuthenticatedRequest, res: Response) => {
   } catch (e: any) {
     res.status(500).json({ error: e.message || 'Error updating client' });
   }
-});
+};
+
+router.put('/:id', handleUpdateClient);
+router.patch('/:id', handleUpdateClient);
 
 // DELETE /api/clients/:id
 router.delete('/:id', (req: AuthenticatedRequest, res: Response) => {

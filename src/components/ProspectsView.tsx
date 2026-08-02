@@ -522,41 +522,6 @@ export default function ProspectsView() {
         </div>
 
         <div className="flex gap-2">
-          {selectedIds.length > 0 && (
-            <div className="flex gap-1.5 items-center bg-white/5 px-3 py-1.5 border border-white/10 rounded-lg shrink-0">
-              <span className="text-xs text-zinc-300 font-semibold">{selectedIds.length} Selected</span>
-              <div className="relative">
-                <button
-                  onClick={() => setShowBulkMenu(!showBulkMenu)}
-                  className="p-1 text-zinc-400 hover:text-white rounded hover:bg-white/5 flex items-center text-[10px] gap-1 cursor-pointer"
-                >
-                  Bulk Edit <ChevronDown className="w-3 h-3" />
-                </button>
-                {showBulkMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-zinc-900 border border-white/10 rounded-lg shadow-2xl p-1 z-40">
-                    <p className="text-[9px] text-zinc-500 uppercase font-semibold px-2 py-1">Set Status</p>
-                    {STATUS_OPTIONS.map((st) => (
-                      <button
-                        key={st}
-                        onClick={() => handleBulkStatusUpdate(st)}
-                        className="w-full text-left px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-white/5 hover:text-white rounded"
-                      >
-                        {st}
-                      </button>
-                    ))}
-                    <div className="border-t border-white/5 my-1" />
-                    <button
-                      onClick={handleBulkDelete}
-                      className="w-full text-left px-2.5 py-1.5 text-xs text-red-400 hover:bg-red-950/20 rounded flex items-center gap-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> Delete Selected
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
           <button
             onClick={() => {
               setFormMode('create');
@@ -684,25 +649,17 @@ export default function ProspectsView() {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.85, y: -15 }}
                     transition={{ duration: 0.25, ease: 'easeOut' }}
-                    className={`glass-panel rounded-xl p-5 relative flex flex-col justify-between border-t-2 ${
+                    className={`glass-panel rounded-xl p-5 relative flex flex-col justify-between border-t-2 overflow-hidden min-w-0 w-full ${
                       p.priority === 'High' ? 'border-t-red-500/50' :
                       p.priority === 'Medium' ? 'border-t-yellow-500/50' : 'border-t-zinc-600/50'
                     }`}
                   >
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex gap-2 items-center">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(p.id)}
-                            onChange={() => handleSelectRow(p.id)}
-                            className="rounded border-white/10 text-white bg-transparent focus:ring-0 cursor-pointer"
-                          />
-                          <h3 className="font-semibold text-sm text-white truncate max-w-[150px]" title={p.businessName}>
-                            {p.businessName}
-                          </h3>
-                        </div>
-                        <div className="flex gap-1">
+                    <div className="space-y-3 min-w-0 w-full">
+                      <div className="flex justify-between items-center gap-2 min-w-0 w-full">
+                        <h3 className="font-semibold text-sm text-white truncate min-w-0 flex-1" title={p.businessName}>
+                          {p.businessName}
+                        </h3>
+                        <div className="flex items-center gap-1 shrink-0 ml-1">
                           <button
                             onClick={() => openProspectEmailModal(p)}
                             className="p-1 hover:bg-blue-500/10 rounded text-blue-400 hover:text-blue-300 cursor-pointer"
@@ -800,14 +757,6 @@ export default function ProspectsView() {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="bg-zinc-950/80 border-b border-white/8 text-zinc-400 font-semibold uppercase tracking-wider">
-                      <th className="p-3.5 w-8">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.length === filteredProspects.length && filteredProspects.length > 0}
-                          onChange={handleSelectAll}
-                          className="rounded border-white/10 text-white focus:ring-0 cursor-pointer bg-transparent"
-                        />
-                      </th>
                       <th className="p-3.5">Company Name</th>
                       <th className="p-3.5">Owner</th>
                       <th className="p-3.5">Status</th>
@@ -829,14 +778,6 @@ export default function ProspectsView() {
                           transition={{ duration: 0.18 }}
                           className="border-b border-white/5 hover:bg-white/3 transition-colors text-zinc-300"
                         >
-                          <td className="p-3.5">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.includes(p.id)}
-                              onChange={() => handleSelectRow(p.id)}
-                              className="rounded border-white/10 text-white focus:ring-0 cursor-pointer bg-transparent"
-                            />
-                          </td>
                           <td className="p-3.5 font-medium text-white">{p.businessName}</td>
                           <td className="p-3.5">{p.ownerName || '—'}</td>
                           <td className="p-3.5">
@@ -914,12 +855,6 @@ export default function ProspectsView() {
                     className="glass-panel rounded-xl p-4 flex items-center justify-between gap-4 hover:bg-white/3 transition-all"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(p.id)}
-                        onChange={() => handleSelectRow(p.id)}
-                        className="rounded border-white/10 text-white bg-transparent focus:ring-0 cursor-pointer"
-                      />
                       <div className="min-w-0">
                         <h4 className="font-semibold text-sm text-white truncate">{p.businessName}</h4>
                         <p className="text-[10px] text-zinc-500 truncate mt-0.5">

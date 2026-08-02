@@ -86,8 +86,8 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
   }
 });
 
-// PUT /api/prospects/:id - update specific prospect
-router.put('/:id', (req: AuthenticatedRequest, res: Response) => {
+// PUT or PATCH /api/prospects/:id - update specific prospect
+const handleUpdateProspect = (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { id } = req.params;
@@ -121,7 +121,10 @@ router.put('/:id', (req: AuthenticatedRequest, res: Response) => {
   } catch (e: any) {
     res.status(500).json({ error: e.message || 'Error updating prospect' });
   }
-});
+};
+
+router.put('/:id', handleUpdateProspect);
+router.patch('/:id', handleUpdateProspect);
 
 // DELETE /api/prospects/:id - delete specific prospect
 router.delete('/:id', (req: AuthenticatedRequest, res: Response) => {
