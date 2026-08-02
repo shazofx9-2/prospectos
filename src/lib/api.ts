@@ -1,3 +1,5 @@
+import { handleClientFallback } from './clientStorage.js';
+
 const BASE_URL = ''; // Relative paths proxy perfectly through Vite middleware
 
 export function getToken(): string | null {
@@ -34,7 +36,12 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   if (method === 'GET' && cache[url] !== undefined) {
     // Return cached data instantly while refreshing in background
     fetch(url, { ...options, headers })
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => {
+        if (!res.ok) return null;
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('text/html')) return null;
+        return res.json().catch(() => null);
+      })
       .then((data) => {
         if (data) cache[url] = data;
       })
@@ -42,24 +49,38 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     return Promise.resolve(cache[url] as T);
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
 
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({ error: 'An unknown error occurred' }));
-    throw new Error(errData.error || `HTTP error! status: ${response.status}`);
-  }
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/html')) {
+      // Returned HTML SPA index because static Vercel host has no server running on /api/
+      return handleClientFallback<T>(url, method, options);
+    }
 
-  const data = await response.json();
-  if (method === 'GET') {
-    cache[url] = data;
-  } else {
-    // Invalidate list caches on mutation
-    clearApiCache();
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ error: 'An unknown error occurred' }));
+      throw new Error(errData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (method === 'GET') {
+      cache[url] = data;
+    } else {
+      // Invalidate list caches on mutation
+      clearApiCache();
+    }
+    return data as T;
+  } catch (err: any) {
+    if (err.message && err.message.startsWith('HTTP error!')) {
+      throw err;
+    }
+    // Network or parse error -> fallback to client storage & analytics engine
+    return handleClientFallback<T>(url, method, options);
   }
-  return data as T;
 }
 
 export const api = {
