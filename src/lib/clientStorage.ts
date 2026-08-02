@@ -380,7 +380,12 @@ function getStored<T>(key: string, initial: T): T {
       localStorage.setItem(key, JSON.stringify(initial));
       return initial;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(initial) && Array.isArray(parsed) && parsed.length === 0) {
+      localStorage.setItem(key, JSON.stringify(initial));
+      return initial;
+    }
+    return parsed;
   } catch {
     return initial;
   }

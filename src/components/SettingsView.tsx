@@ -931,23 +931,16 @@ export default function SettingsView({ currentUser, onUserUpdate }: SettingsView
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <a
-                          href="mailto:prospectos.support@gmail.com"
-                          className="px-4 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-semibold text-xs text-center transition-colors cursor-pointer flex items-center gap-1.5"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                          <span>Send Email</span>
-                        </a>
                         <button
                           type="button"
                           onClick={() => {
                             navigator.clipboard.writeText('prospectos.support@gmail.com');
                             setToastMsg('Support email copied to clipboard!');
                           }}
-                          className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-medium text-xs transition-colors cursor-pointer flex items-center gap-1.5 border border-white/10"
+                          className="px-4 py-2 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-semibold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
                         >
                           <Copy className="w-3.5 h-3.5" />
-                          <span>Copy</span>
+                          <span>Copy Email</span>
                         </button>
                       </div>
                     </div>

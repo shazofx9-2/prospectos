@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { DB, Prospect, Client } from '../db.js';
 import { authMiddleware, AuthenticatedRequest } from '../auth.js';
+import { ensureUserSeeded } from '../seed.js';
 
 const router = Router();
 
@@ -11,6 +12,7 @@ router.use(authMiddleware);
 router.get('/', (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
+    ensureUserSeeded(userId);
     const prospects = DB.query('prospects').filter((p) => p.userId === userId);
     res.json(prospects);
   } catch (e: any) {

@@ -971,15 +971,12 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                   <ExternalLink className="w-3.5 h-3.5 text-zinc-500 ml-auto group-hover:text-white transition-colors" />
                 </a>
 
-                {/* Email Clean Link */}
+                {/* Email Display */}
                 <div className="flex items-center justify-between py-2 px-1 text-zinc-300">
-                  <a
-                    href="mailto:prospectos.support@gmail.com"
-                    className="flex items-center gap-3 hover:text-white transition-colors cursor-pointer group"
-                  >
-                    <Mail className="w-5 h-5 text-zinc-300 group-hover:text-white" />
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-5 h-5 text-zinc-300" />
                     <span className="text-sm font-medium">prospectos.support@gmail.com</span>
-                  </a>
+                  </div>
                   <button
                     type="button"
                     onClick={handleCopyEmail}

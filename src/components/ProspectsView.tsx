@@ -14,6 +14,7 @@ import {
   MoreVertical,
   Plus,
   ArrowRight,
+  ArrowLeft,
   TrendingUp,
   Tag,
   Mail,
@@ -23,7 +24,10 @@ import {
   ExternalLink,
   X,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Kanban,
+  Sparkles,
+  SlidersHorizontal
 } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { Prospect, ProspectStatus } from '../types.js';
@@ -45,14 +49,77 @@ const STATUS_OPTIONS: ProspectStatus[] = [
   'Archived'
 ];
 
+const getEstimatedDealValue = (p: Prospect): number => {
+  if (p.notes) {
+    const match = p.notes.match(/\$?(\d{1,3}(?:,\d{3})*|\d+)(?:k|K)?/);
+    if (match && match[1]) {
+      let num = parseInt(match[1].replace(/,/g, ''), 10);
+      if (p.notes.toLowerCase().includes(match[1] + 'k')) num *= 1000;
+      if (num >= 1000) return num;
+    }
+  }
+  let hash = 0;
+  for (let i = 0; i < p.businessName.length; i++) {
+    hash += p.businessName.charCodeAt(i);
+  }
+  if (p.priority === 'High') {
+    return 20000 + (hash % 35) * 1000;
+  } else if (p.priority === 'Medium') {
+    return 12000 + (hash % 18) * 500;
+  } else {
+    return 5000 + (hash % 10) * 500;
+  }
+};
+
+const INTERACTIVE_COLUMNS = [
+  {
+    key: 'new_leads',
+    title: 'New Leads',
+    dotColor: 'bg-blue-500',
+    cardBg: 'bg-zinc-900/90 border-white/10 hover:border-blue-500/40 shadow-sm',
+    badgeStyle: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+    statuses: ['New', 'Contacted', 'Follow Up'] as ProspectStatus[],
+    targetStatus: 'New' as ProspectStatus,
+  },
+  {
+    key: 'in_negotiation',
+    title: 'In Negotiation',
+    dotColor: 'bg-amber-400',
+    cardBg: 'bg-zinc-900/90 border-amber-500/30 hover:border-amber-500/60 shadow-amber-950/20 shadow-sm',
+    badgeStyle: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    statuses: ['Meeting Scheduled', 'Proposal Sent', 'Negotiating'] as ProspectStatus[],
+    targetStatus: 'Negotiating' as ProspectStatus,
+  },
+  {
+    key: 'closed_won',
+    title: 'Closed Won',
+    dotColor: 'bg-emerald-400',
+    cardBg: 'bg-zinc-900/90 border-emerald-500/30 hover:border-emerald-500/60 shadow-emerald-950/20 shadow-sm',
+    badgeStyle: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    statuses: ['Landed'] as ProspectStatus[],
+    targetStatus: 'Landed' as ProspectStatus,
+  },
+  {
+    key: 'closed_lost',
+    title: 'Closed Lost',
+    dotColor: 'bg-zinc-500',
+    cardBg: 'bg-zinc-900/90 border-zinc-800 hover:border-zinc-700',
+    badgeStyle: 'bg-zinc-800 text-zinc-400 border-zinc-700',
+    statuses: ['Failed', 'Ghosted', 'Not Interested', 'Archived'] as ProspectStatus[],
+    targetStatus: 'Failed' as ProspectStatus,
+  },
+];
+
 export default function ProspectsView() {
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mainViewMode, setMainViewMode] = useState<'interactive' | 'manual'>('interactive');
   const [viewType, setViewType] = useState<'card' | 'table' | 'list'>('card');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [selectedPriority, setSelectedPriority] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'dateAdded' | 'priority' | 'businessName'>('dateAdded');
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // Bulk operations state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -521,14 +588,58 @@ export default function ProspectsView() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* Main View Mode Selector: Interactive vs Manual */}
+          <div className="flex p-1 bg-zinc-950 border border-white/10 rounded-xl shadow-inner relative">
+            <button
+              onClick={() => setMainViewMode('interactive')}
+              className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer z-10 ${
+                mainViewMode === 'interactive'
+                  ? 'text-white font-bold'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              id="view-mode-interactive"
+            >
+              {mainViewMode === 'interactive' && (
+                <motion.div
+                  layoutId="prospectsViewModeIndicator"
+                  className="absolute inset-0 bg-zinc-800 border border-white/10 rounded-lg shadow-sm"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                <Kanban className="w-3.5 h-3.5" /> Interactive
+              </span>
+            </button>
+            <button
+              onClick={() => setMainViewMode('manual')}
+              className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer z-10 ${
+                mainViewMode === 'manual'
+                  ? 'text-white font-bold'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              id="view-mode-manual"
+            >
+              {mainViewMode === 'manual' && (
+                <motion.div
+                  layoutId="prospectsViewModeIndicator"
+                  className="absolute inset-0 bg-zinc-800 border border-white/10 rounded-lg shadow-sm"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                <SlidersHorizontal className="w-3.5 h-3.5" /> Manual
+              </span>
+            </button>
+          </div>
+
           <button
             onClick={() => {
               setFormMode('create');
               resetFormFields();
               setShowForm(true);
             }}
-            className="px-3.5 py-2 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
             id="add-prospect-cta"
           >
             <Plus className="w-4 h-4" /> Add Prospect
@@ -536,6 +647,212 @@ export default function ProspectsView() {
         </div>
       </div>
 
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={mainViewMode}
+          initial={{ opacity: 0, y: 16, scale: 0.985, filter: 'blur(8px)' }}
+          animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+          exit={{ opacity: 0, y: -12, scale: 0.985, filter: 'blur(8px)' }}
+          transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+          className="w-full"
+        >
+          {mainViewMode === 'interactive' ? (
+        <div className="space-y-4">
+          {/* Quick Search & Filter bar for Interactive Board */}
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-zinc-950/50 border border-white/5 p-3 rounded-xl">
+            <div className="relative flex-1">
+              <Search className="absolute inset-y-0 left-3 my-auto w-4 h-4 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Filter prospects in pipeline..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-1.5 text-xs glass-input"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedPriority}
+                onChange={(e) => setSelectedPriority(e.target.value)}
+                className="pl-3 pr-8 py-1.5 text-xs bg-zinc-900 border border-white/8 rounded-lg text-zinc-300 focus:outline-none"
+              >
+                <option value="All">All Priorities</option>
+                <option value="High">High Intent</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+
+              <span className="text-[11px] text-zinc-500 font-mono hidden md:inline">
+                💡 Drag cards across columns to update stage
+              </span>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="h-64 flex items-center justify-center text-zinc-500">
+              Loading interactive pipeline...
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-start">
+              {INTERACTIVE_COLUMNS.map((col, colIdx) => {
+                const colProspects = filteredProspects.filter((p) =>
+                  col.statuses.includes(p.status)
+                );
+
+                return (
+                  <div
+                    key={col.key}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const id = e.dataTransfer.getData('text/plain') || draggingId;
+                      if (id) {
+                        handleQuickStatusUpdate(id, col.targetStatus);
+                        setDraggingId(null);
+                      }
+                    }}
+                    className="bg-zinc-950/60 border border-white/8 rounded-2xl p-4 flex flex-col gap-3 min-h-[520px] transition-colors hover:border-white/15"
+                  >
+                    {/* Column Header */}
+                    <div className="flex items-center justify-between pb-3 border-b border-white/8">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full ${col.dotColor}`} />
+                        <h3 className="font-semibold text-sm text-white">
+                          {col.title}{' '}
+                          <span className="text-zinc-400 font-normal">
+                            ({colProspects.length})
+                          </span>
+                        </h3>
+                      </div>
+                    </div>
+
+                    {/* Column Prospects Cards */}
+                    <div className="flex flex-col gap-3 flex-1">
+                      {colProspects.length === 0 ? (
+                        <div className="h-32 border border-dashed border-white/5 rounded-xl flex items-center justify-center text-xs text-zinc-600">
+                          Drop prospects here
+                        </div>
+                      ) : (
+                        colProspects.map((p) => {
+                          return (
+                            <motion.div
+                              key={p.id}
+                              layout
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('text/plain', p.id);
+                                setDraggingId(p.id);
+                              }}
+                              onDragEnd={() => setDraggingId(null)}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={`group p-4 rounded-xl border transition-all cursor-grab active:cursor-grabbing relative flex flex-col justify-between space-y-2.5 ${col.cardBg}`}
+                            >
+                              {/* Card Header: Business Name */}
+                              <div className="flex justify-between items-start gap-2">
+                                <h4
+                                  className="font-bold text-sm text-white truncate max-w-full"
+                                  title={p.businessName}
+                                >
+                                  {p.businessName}
+                                </h4>
+                              </div>
+
+                              {/* Subtitle / Notes / Service */}
+                              <p className="text-xs text-zinc-400 line-clamp-2 min-h-[30px] font-light">
+                                {p.notes ||
+                                  `${p.industry || 'General Services'} Onboarding & Integration`}
+                              </p>
+
+                              {/* Footer Info & Badges */}
+                              <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
+                                <span className="text-zinc-400 truncate max-w-[130px]">
+                                  {col.key === 'closed_won' ? (
+                                    <span className="text-emerald-400 font-medium">
+                                      Signed Contract Verified
+                                    </span>
+                                  ) : (
+                                    `Contact: ${p.ownerName || p.city || 'Lead'}`
+                                  )}
+                                </span>
+
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${col.badgeStyle}`}
+                                >
+                                  {col.key === 'closed_won'
+                                    ? '✓ Synced'
+                                    : col.key === 'in_negotiation'
+                                    ? 'Priority'
+                                    : p.priority === 'High'
+                                    ? 'High Intent'
+                                    : p.priority}
+                                </span>
+                              </div>
+
+                              {/* Hover Actions Bar */}
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1 pt-2 border-t border-white/5">
+                                {colIdx > 0 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const prevCol = INTERACTIVE_COLUMNS[colIdx - 1];
+                                      handleQuickStatusUpdate(p.id, prevCol.targetStatus);
+                                    }}
+                                    className="p-1 rounded bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white cursor-pointer"
+                                    title="Move to previous stage"
+                                  >
+                                    <ArrowLeft className="w-3 h-3" />
+                                  </button>
+                                )}
+                                {colIdx < INTERACTIVE_COLUMNS.length - 1 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const nextCol = INTERACTIVE_COLUMNS[colIdx + 1];
+                                      handleQuickStatusUpdate(p.id, nextCol.targetStatus);
+                                    }}
+                                    className="p-1 rounded bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white cursor-pointer"
+                                    title="Move to next stage"
+                                  >
+                                    <ArrowRight className="w-3 h-3" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openProspectEmailModal(p);
+                                  }}
+                                  className="p-1 rounded bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white cursor-pointer"
+                                  title="Send Email"
+                                >
+                                  <Mail className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEdit(p);
+                                  }}
+                                  className="p-1 rounded bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white cursor-pointer"
+                                  title="Edit"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </motion.div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* MANUAL VIEW (Original) */
+        <div className="space-y-4">
       {/* Control Panel: Search, Filters, View Toggles */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 bg-zinc-950/50 border border-white/5 p-4 rounded-xl">
         {/* Search */}
@@ -919,8 +1236,12 @@ export default function ProspectsView() {
           )}
         </>
       )}
+    </div>
+  )}
+</motion.div>
+</AnimatePresence>
 
-      {/* FORM DRAWER MODAL WITH ANIMATION */}
+  {/* FORM DRAWER MODAL WITH ANIMATION */}
       <AnimatePresence>
         {showForm && (
           <motion.div
