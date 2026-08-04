@@ -250,29 +250,29 @@ function createClientFromProspect(userId: string, prospect: Prospect, customFiel
 
   const isOneTime = customFields?.contractType === 'one_time';
   const servicePurchased = customFields?.servicePurchased || 'Premium CRM Implementation';
-  const contractValue = customFields?.contractValue !== undefined ? Number(customFields.contractValue) : 12000;
+  const contractValue = customFields?.contractValue !== undefined ? Number(customFields.contractValue) : ((prospect as any).estimatedValue || 12000);
   const monthlyRetainer = isOneTime ? 0 : (customFields?.monthlyRetainer !== undefined ? Number(customFields.monthlyRetainer) : 1500);
 
   const newClient: Client = {
     id: 'clnt_' + Math.random().toString(36).substr(2, 9),
     userId,
     prospectId: prospect.id,
-    businessName: prospect.businessName,
-    contactName: prospect.ownerName || 'Contact',
-    email: prospect.email,
-    phone: prospect.phone,
+    businessName: customFields?.businessName || prospect.businessName,
+    contactName: customFields?.contactName || customFields?.ownerName || prospect.ownerName || 'Contact',
+    email: customFields?.email !== undefined ? customFields.email : prospect.email,
+    phone: customFields?.phone !== undefined ? customFields.phone : prospect.phone,
     servicePurchased,
     contractValue,
     monthlyRetainer,
     startDate: customFields?.startDate || new Date().toISOString().split('T')[0],
     renewalDate: customFields?.renewalDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 year renewal
     deliveryDate: customFields?.deliveryDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],  // 30 days delivery
-    paymentStatus: 'Pending',
-    invoiceStatus: 'Pending',
-    notes: prospect.notes || '',
-    priority: prospect.priority || 'Medium',
+    paymentStatus: customFields?.paymentStatus || 'Pending',
+    invoiceStatus: customFields?.invoiceStatus || 'Sent',
+    notes: customFields?.notes !== undefined ? customFields.notes : (prospect.notes || ''),
+    priority: customFields?.priority || prospect.priority || 'Medium',
     internalNotes: customFields?.internalNotes || 'Automatically converted from landed prospect.',
-    status: 'Active',
+    status: customFields?.clientStatus || customFields?.status || 'Active',
   };
 
   DB.insert('clients', newClient);

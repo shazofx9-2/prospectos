@@ -778,6 +778,60 @@ export function handleClientFallback<T>(url: string, method: string, options: an
     if (method === 'PUT' || method === 'PATCH') {
       const id = cleanUrl.split('/').pop();
       const body = JSON.parse(options?.body || '{}');
+      const existingP = list.find((p) => p.id === id);
+
+      if (body.status === 'Landed' && existingP) {
+        list = list.filter((p) => p.id !== id);
+        setUserStoredData('prospects', list, uid);
+
+        let clientsList = getUserStoredData<Client>('clients', uid);
+        const newC: Client = {
+          id: `clnt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          userId: uid,
+          prospectId: existingP.id,
+          businessName: body.businessName || existingP.businessName,
+          contactName: body.contactName || body.ownerName || existingP.ownerName || 'Contact',
+          email: body.email !== undefined ? body.email : existingP.email,
+          phone: body.phone !== undefined ? body.phone : existingP.phone,
+          servicePurchased: body.servicePurchased || 'Premium CRM Implementation',
+          contractValue: Number(body.contractValue) || Number((existingP as any).estimatedValue) || 12000,
+          monthlyRetainer: body.contractType === 'one_time' ? 0 : (Number(body.monthlyRetainer) || 1500),
+          startDate: body.startDate || new Date().toISOString().split('T')[0],
+          renewalDate: body.renewalDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          deliveryDate: body.deliveryDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          paymentStatus: body.paymentStatus || 'Pending',
+          invoiceStatus: body.invoiceStatus || 'Sent',
+          notes: body.notes !== undefined ? body.notes : (existingP.notes || ''),
+          priority: body.priority || existingP.priority || 'Medium',
+          internalNotes: body.internalNotes || 'Converted from Landed Prospect',
+          status: body.clientStatus || 'Active',
+        };
+
+        const idx = clientsList.findIndex((c) => c.prospectId === existingP.id);
+        if (idx >= 0) {
+          clientsList[idx] = newC;
+        } else {
+          clientsList.unshift(newC);
+        }
+        setUserStoredData('clients', clientsList, uid);
+
+        if (body.nextFollowUpDate) {
+          let remindersList = getUserStoredData<any>('reminders', uid);
+          remindersList.unshift({
+            id: `rem_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            userId: uid,
+            clientId: newC.id,
+            title: `Follow up with ${newC.businessName}`,
+            dueDate: body.nextFollowUpDate,
+            note: body.followUpNote || 'Client Onboarding Follow-Up',
+            completed: false,
+          });
+          setUserStoredData('reminders', remindersList, uid);
+        }
+
+        return { success: true, message: 'Converted to client' } as any;
+      }
+
       list = list.map((p) => (p.id === id ? { ...p, ...body } : p));
       setUserStoredData('prospects', list, uid);
       const updated = list.find((p) => p.id === id);

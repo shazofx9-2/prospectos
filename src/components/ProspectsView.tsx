@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/api.js';
 import { handleClientFallback, getCurrentUserId } from '../lib/clientStorage.js';
-import { Prospect, ProspectStatus } from '../types.js';
+import { Prospect, ProspectStatus, ClientStatus } from '../types.js';
 import { AppleToast } from './AppleToast.jsx';
 import { SendEmailModal } from './SendEmailModal.jsx';
 import { formatCurrency, getCurrencySymbol } from '../lib/currency.js';
@@ -223,15 +223,25 @@ export default function ProspectsView() {
   const [quickCustomFollowUpDate, setQuickCustomFollowUpDate] = useState<string>('');
   const [quickFollowUpNote, setQuickFollowUpNote] = useState<string>('');
 
-  // Landed Quick-change Confirmation Modal states
+  // Landed Quick-change Confirmation Modal states (Onboard Client from Prospect)
   const [landedConfirmProspect, setLandedConfirmProspect] = useState<Prospect | null>(null);
+  const [confirmBusinessName, setConfirmBusinessName] = useState('');
+  const [confirmContactName, setConfirmContactName] = useState('');
+  const [confirmEmail, setConfirmEmail] = useState('');
+  const [confirmPhone, setConfirmPhone] = useState('');
   const [confirmServicePurchased, setConfirmServicePurchased] = useState('Premium CRM Implementation');
   const [confirmContractType, setConfirmContractType] = useState<'monthly' | 'one_time'>('monthly');
   const [confirmContractValue, setConfirmContractValue] = useState<number>(12000);
   const [confirmMonthlyRetainer, setConfirmMonthlyRetainer] = useState<number>(1500);
+  const [confirmPriority, setConfirmPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
   const [confirmStartDate, setConfirmStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [confirmDeliveryDate, setConfirmDeliveryDate] = useState<string>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [confirmRenewalDate, setConfirmRenewalDate] = useState<string>(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+  const [confirmStatus, setConfirmStatus] = useState<ClientStatus>('Active');
+  const [confirmPaymentStatus, setConfirmPaymentStatus] = useState<'Paid' | 'Pending' | 'Overdue'>('Pending');
+  const [confirmInvoiceStatus, setConfirmInvoiceStatus] = useState<'Paid' | 'Sent' | 'Pending'>('Sent');
+  const [confirmNotes, setConfirmNotes] = useState('');
+  const [confirmInternalNotes, setConfirmInternalNotes] = useState('');
   const [confirmFollowUpPreset, setConfirmFollowUpPreset] = useState<string>('none');
   const [confirmCustomFollowUpDate, setConfirmCustomFollowUpDate] = useState<string>('');
   const [confirmFollowUpNote, setConfirmFollowUpNote] = useState<string>('');
@@ -284,14 +294,25 @@ export default function ProspectsView() {
       const p = prospects.find((x) => x.id === id);
       if (p) {
         setLandedConfirmProspect(p);
-        // Set sensible defaults for confirmation
-        setConfirmServicePurchased('Premium CRM Implementation');
-        setConfirmContractType('monthly');
-        setConfirmContractValue(12000);
-        setConfirmMonthlyRetainer(1500);
-        setConfirmStartDate(new Date().toISOString().split('T')[0]);
-        setConfirmDeliveryDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-        setConfirmRenewalDate(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+        // Autofill all known information from prospect
+        setConfirmBusinessName(p.businessName || '');
+        setConfirmContactName(p.ownerName || '');
+        setConfirmEmail(p.email || '');
+        setConfirmPhone(p.phone || '');
+        setConfirmServicePurchased((p as any).servicePurchased || 'Premium CRM Implementation');
+        setConfirmContractType((p as any).contractType || 'monthly');
+        setConfirmContractValue((p as any).contractValue || (p as any).estimatedValue || 12000);
+        setConfirmMonthlyRetainer((p as any).monthlyRetainer || ((p as any).contractType === 'one_time' ? 0 : 1500));
+        setConfirmPriority(p.priority || 'Medium');
+        setConfirmStartDate((p as any).startDate || new Date().toISOString().split('T')[0]);
+        setConfirmDeliveryDate((p as any).deliveryDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+        setConfirmRenewalDate((p as any).renewalDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+        setConfirmStatus('Active');
+        setConfirmPaymentStatus('Pending');
+        setConfirmInvoiceStatus('Sent');
+        setConfirmNotes(p.notes || '');
+        setConfirmInternalNotes('Converted from Landed Prospect');
+
         if (p.nextFollowUpDate) {
           setConfirmFollowUpPreset('custom');
           setConfirmCustomFollowUpDate(p.nextFollowUpDate.split('T')[0]);
@@ -331,18 +352,29 @@ export default function ProspectsView() {
     try {
       await api.prospects.update(landedConfirmProspect.id, {
         status: 'Landed',
+        businessName: confirmBusinessName || landedConfirmProspect.businessName,
+        ownerName: confirmContactName,
+        contactName: confirmContactName,
+        email: confirmEmail,
+        phone: confirmPhone,
         servicePurchased: confirmServicePurchased,
         contractType: confirmContractType,
         contractValue: confirmContractValue,
         monthlyRetainer: confirmContractType === 'one_time' ? 0 : confirmMonthlyRetainer,
+        priority: confirmPriority,
         startDate: confirmStartDate,
         deliveryDate: confirmDeliveryDate,
         renewalDate: confirmRenewalDate,
+        clientStatus: confirmStatus,
+        paymentStatus: confirmPaymentStatus,
+        invoiceStatus: confirmInvoiceStatus,
+        notes: confirmNotes,
+        internalNotes: confirmInternalNotes,
         nextFollowUpDate: calculatedFollowUpDate,
         followUpStatus: calculatedFollowUpDate ? 'pending' : 'none',
         followUpNote: confirmFollowUpNote.trim() || null
       });
-      triggerNotification(`Landed! "${landedConfirmProspect.businessName}" converted to Client successfully.`);
+      triggerNotification(`Landed! "${confirmBusinessName || landedConfirmProspect.businessName}" moved to Clients successfully.`);
       setLandedConfirmProspect(null);
       loadProspects();
     } catch (e: any) {
@@ -1667,7 +1699,7 @@ export default function ProspectsView() {
         )}
       </AnimatePresence>
 
-      {/* LANDED CONFIRMATION MODAL WITH ANIMATION */}
+      {/* LANDED CONFIRMATION MODAL WITH CLIENT ONBOARDING QUESTIONS */}
       <AnimatePresence>
         {landedConfirmProspect && (
           <motion.div
@@ -1675,7 +1707,7 @@ export default function ProspectsView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto"
             onClick={() => setLandedConfirmProspect(null)}
           >
             <motion.div
@@ -1684,149 +1716,262 @@ export default function ProspectsView() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="glass-panel rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-5 border border-emerald-500/25"
+              className="glass-panel rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 shadow-2xl space-y-5 border border-emerald-500/30 my-auto"
             >
-              <div className="flex justify-between items-center border-b border-white/5 pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                    Promote to Landed Client
-                  </h3>
+              <div className="flex justify-between items-center border-b border-white/10 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                      Onboard Client from Prospect
+                    </h3>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    Information known from prospect record has been autofilled below.
+                  </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setLandedConfirmProspect(null)}
-                  className="p-1 rounded text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                   title="Cancel"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className="text-xs text-zinc-300 leading-relaxed">
-                Confirm contract values and billing details before converting <span className="text-white font-semibold">{landedConfirmProspect.businessName}</span> to an Active client.
-              </p>
+              <form onSubmit={(e) => { e.preventDefault(); handleConfirmLanded(); }} className="space-y-5 text-xs">
+                {/* SECTION 1: Contact & Company Info */}
+                <div className="space-y-3 p-3.5 bg-zinc-950/60 border border-white/8 rounded-xl">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Briefcase className="w-3.5 h-3.5" />
+                    Company & Primary Contact
+                  </span>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Business Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={confirmBusinessName}
+                        onChange={(e) => setConfirmBusinessName(e.target.value)}
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-white font-medium focus:border-emerald-500 focus:outline-none"
+                        placeholder="Company name"
+                      />
+                    </div>
 
-              <div className="space-y-4 text-xs">
-                <div className="space-y-1.5">
-                  <label className="text-zinc-400 font-medium text-[10px] uppercase">Service Name</label>
-                  <input
-                    type="text"
-                    value={confirmServicePurchased}
-                    onChange={(e) => setConfirmServicePurchased(e.target.value)}
-                    className="w-full p-2.5 bg-zinc-950 border border-white/10 rounded-lg text-white font-medium"
-                    placeholder="Service description"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-zinc-400 font-medium text-[10px] uppercase">Contract Model</label>
-                    <select
-                      value={confirmContractType}
-                      onChange={(e) => setConfirmContractType(e.target.value as any)}
-                      className="w-full p-2.5 bg-zinc-900 border border-white/8 rounded-lg text-zinc-300 focus:outline-none"
-                    >
-                      <option value="monthly">Monthly Retainer</option>
-                      <option value="one_time">One-Time Project</option>
-                    </select>
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Primary Contact Name</label>
+                      <input
+                        type="text"
+                        value={confirmContactName}
+                        onChange={(e) => setConfirmContactName(e.target.value)}
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-white font-medium focus:border-emerald-500 focus:outline-none"
+                        placeholder="Contact name"
+                      />
+                    </div>
                   </div>
 
-                  {confirmContractType === 'one_time' ? (
-                    <div className="space-y-1.5">
-                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Project Value ({getCurrencySymbol()})</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Contact Email</label>
+                      <input
+                        type="email"
+                        value={confirmEmail}
+                        onChange={(e) => setConfirmEmail(e.target.value)}
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:border-emerald-500 focus:outline-none"
+                        placeholder="contact@company.com"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Contact Phone</label>
+                      <input
+                        type="text"
+                        value={confirmPhone}
+                        onChange={(e) => setConfirmPhone(e.target.value)}
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:border-emerald-500 focus:outline-none"
+                        placeholder="+1 (555) 019-2831"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 2: Service & Contract Attributes */}
+                <div className="space-y-3 p-3.5 bg-zinc-950/60 border border-white/8 rounded-xl">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    Service & Contract Terms
+                  </span>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-1 md:col-span-2">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Service / Product Purchased</label>
+                      <input
+                        type="text"
+                        value={confirmServicePurchased}
+                        onChange={(e) => setConfirmServicePurchased(e.target.value)}
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-white font-medium focus:border-emerald-500 focus:outline-none"
+                        placeholder="E.g. Headless Next.js Integration"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Contract Model</label>
+                      <select
+                        value={confirmContractType}
+                        onChange={(e) => setConfirmContractType(e.target.value as any)}
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none"
+                      >
+                        <option value="monthly">Monthly Retainer</option>
+                        <option value="one_time">One-Time Project</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">
+                        {confirmContractType === 'one_time' ? 'Project Value' : 'Upfront / Setup Value'} ({getCurrencySymbol()})
+                      </label>
                       <input
                         type="number"
                         value={confirmContractValue}
                         onChange={(e) => setConfirmContractValue(Number(e.target.value))}
-                        className="w-full p-2.5 bg-zinc-950 border border-white/10 rounded-lg text-white"
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
                         min="0"
                       />
                     </div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Monthly Retainer ({getCurrencySymbol()}/mo)</label>
-                      <input
-                        type="number"
-                        value={confirmMonthlyRetainer}
-                        onChange={(e) => setConfirmMonthlyRetainer(Number(e.target.value))}
-                        className="w-full p-2.5 bg-zinc-950 border border-white/10 rounded-lg text-white"
-                        min="0"
-                      />
+
+                    {confirmContractType === 'monthly' ? (
+                      <div className="space-y-1">
+                        <label className="text-zinc-400 font-medium text-[10px] uppercase">Monthly Retainer ({getCurrencySymbol()}/mo)</label>
+                        <input
+                          type="number"
+                          value={confirmMonthlyRetainer}
+                          onChange={(e) => setConfirmMonthlyRetainer(Number(e.target.value))}
+                          className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
+                          min="0"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-1 flex flex-col justify-end">
+                        <p className="text-[10px] text-zinc-500">Fixed rate single-deliverable contract</p>
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Client Priority</label>
+                      <select
+                        value={confirmPriority}
+                        onChange={(e) => setConfirmPriority(e.target.value as any)}
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none"
+                      >
+                        <option value="High">High Priority</option>
+                        <option value="Medium">Medium Priority</option>
+                        <option value="Low">Low Priority</option>
+                      </select>
                     </div>
-                  )}
+                  </div>
                 </div>
 
-                {confirmContractType === 'monthly' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Upfront / Setup Value ({getCurrencySymbol()})</label>
+                {/* SECTION 3: Agreement Dates & Lifecycle Statuses */}
+                <div className="space-y-3 p-3.5 bg-zinc-950/60 border border-white/8 rounded-xl">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    Agreement Dates & Account Lifecycle
+                  </span>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Agreement Start Date</label>
                       <input
-                        type="number"
-                        value={confirmContractValue}
-                        onChange={(e) => setConfirmContractValue(Number(e.target.value))}
-                        className="w-full p-2.5 bg-zinc-950 border border-white/10 rounded-lg text-white"
-                        min="0"
+                        type="date"
+                        value={confirmStartDate}
+                        onChange={(e) => setConfirmStartDate(e.target.value)}
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none"
                       />
                     </div>
-                    <div className="space-y-1.5 flex flex-col justify-end">
-                      <p className="text-[10px] text-zinc-500 leading-normal">
-                        Specify setup or upfront payment required beside the monthly fee.
-                      </p>
-                    </div>
-                  </div>
-                )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-zinc-400 font-medium text-[10px] uppercase">Start Date</label>
-                    <input
-                      type="date"
-                      value={confirmStartDate}
-                      onChange={(e) => setConfirmStartDate(e.target.value)}
-                      className="w-full p-2.5 bg-zinc-950 border border-white/10 rounded-lg text-zinc-300"
-                    />
-                  </div>
-
-                  {confirmContractType === 'monthly' ? (
-                    <div className="space-y-1.5">
-                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Annual Renewal</label>
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">SLA Renewal Date</label>
                       <input
                         type="date"
                         value={confirmRenewalDate}
                         onChange={(e) => setConfirmRenewalDate(e.target.value)}
-                        className="w-full p-2.5 bg-zinc-950 border border-white/10 rounded-lg text-zinc-300"
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none"
                       />
                     </div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Target Delivery</label>
+
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Target Delivery Date</label>
                       <input
                         type="date"
                         value={confirmDeliveryDate}
                         onChange={(e) => setConfirmDeliveryDate(e.target.value)}
-                        className="w-full p-2.5 bg-zinc-950 border border-white/10 rounded-lg text-zinc-300"
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none"
                       />
                     </div>
-                  )}
-                </div>
-
-                {/* Follow-Up Schedule Section in Landed Modal */}
-                <div className="space-y-3 pt-3 border-t border-white/8">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-amber-400" />
-                    <label className="text-amber-400 font-bold text-[10px] uppercase tracking-wider">
-                      Follow-Up Reminder Schedule
-                    </label>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Client Lifecycle Status</label>
+                      <select
+                        value={confirmStatus}
+                        onChange={(e) => setConfirmStatus(e.target.value as ClientStatus)}
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none"
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Paused">Paused</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Renewing">Renewing</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Payment Status</label>
+                      <select
+                        value={confirmPaymentStatus}
+                        onChange={(e) => setConfirmPaymentStatus(e.target.value as any)}
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none"
+                      >
+                        <option value="Paid">Paid</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Overdue">Overdue</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-zinc-400 font-medium text-[10px] uppercase">Invoice Status</label>
+                      <select
+                        value={confirmInvoiceStatus}
+                        onChange={(e) => setConfirmInvoiceStatus(e.target.value as any)}
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none"
+                      >
+                        <option value="Paid">Paid</option>
+                        <option value="Sent">Sent</option>
+                        <option value="Pending">Pending</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 4: Follow-Up Schedule */}
+                <div className="space-y-3 p-3.5 bg-zinc-950/60 border border-white/8 rounded-xl">
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    Follow-Up Reminder Schedule
+                  </span>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-zinc-400 font-medium text-[10px] uppercase">Schedule Preset</label>
                       <select
                         value={confirmFollowUpPreset}
                         onChange={(e) => setConfirmFollowUpPreset(e.target.value)}
-                        className="w-full p-2 bg-zinc-900 border border-white/10 rounded-lg text-white text-xs"
+                        className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none"
                       >
                         <option value="none">No Follow-Up</option>
                         <option value="1d">In 1 Day</option>
@@ -1845,7 +1990,7 @@ export default function ProspectsView() {
                           type="date"
                           value={confirmCustomFollowUpDate}
                           onChange={(e) => setConfirmCustomFollowUpDate(e.target.value)}
-                          className="w-full p-2 bg-zinc-950 border border-white/10 rounded-lg text-white text-xs"
+                          className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none"
                         />
                       </div>
                     )}
@@ -1855,31 +2000,56 @@ export default function ProspectsView() {
                     <label className="text-zinc-400 font-medium text-[10px] uppercase">Follow-Up Note</label>
                     <input
                       type="text"
-                      placeholder="e.g. Call client to verify onboarding checklist"
+                      placeholder="E.g. Schedule kick-off call with tech lead"
                       value={confirmFollowUpNote}
                       onChange={(e) => setConfirmFollowUpNote(e.target.value)}
-                      className="w-full p-2 bg-zinc-950 border border-white/10 rounded-lg text-white text-xs"
+                      className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:border-amber-400 focus:outline-none"
                     />
                   </div>
                 </div>
-              </div>
 
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setLandedConfirmProspect(null)}
-                  className="flex-1 py-2 rounded-lg bg-white/5 border border-white/10 text-zinc-300 font-medium hover:text-white hover:bg-white/10 cursor-pointer text-xs transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmLanded}
-                  className="flex-1 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold cursor-pointer text-xs flex items-center justify-center transition-colors"
-                >
-                  Confirm Conversion
-                </button>
-              </div>
+                {/* SECTION 5: Notes & Documentation */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-zinc-400 font-medium text-[10px] uppercase">Operation & Retainer Notes</label>
+                    <textarea
+                      rows={2}
+                      value={confirmNotes}
+                      onChange={(e) => setConfirmNotes(e.target.value)}
+                      className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none resize-none"
+                      placeholder="Scope, technology stack, and deliverables..."
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-zinc-400 font-medium text-[10px] uppercase">Internal Admin Logs</label>
+                    <textarea
+                      rows={2}
+                      value={confirmInternalNotes}
+                      onChange={(e) => setConfirmInternalNotes(e.target.value)}
+                      className="w-full p-2.5 bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none resize-none"
+                      placeholder="Internal administration logs..."
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setLandedConfirmProspect(null)}
+                    className="flex-1 py-2.5 rounded-lg bg-white/5 border border-white/10 text-zinc-300 font-medium hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Confirm & Move to Clients
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

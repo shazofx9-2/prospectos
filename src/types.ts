@@ -43,6 +43,17 @@ export interface Prospect {
   nextFollowUpDate?: string | null;
   followUpStatus?: 'none' | 'pending' | 'done' | 'skipped';
   followUpNote?: string | null;
+  contractType?: 'monthly' | 'one_time';
+  contractValue?: number;
+  monthlyRetainer?: number;
+  servicePurchased?: string;
+  estimatedValue?: number;
+  startDate?: string;
+  renewalDate?: string;
+  deliveryDate?: string;
+  paymentStatus?: 'Paid' | 'Pending' | 'Overdue';
+  invoiceStatus?: 'Paid' | 'Sent' | 'Pending';
+  internalNotes?: string;
 }
 
 export type ClientStatus =
