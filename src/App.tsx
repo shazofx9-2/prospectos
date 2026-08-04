@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { getToken, removeToken, setToken, clearApiCache, api } from './lib/api.js';
+import { getCurrentUserId } from './lib/clientStorage.js';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './lib/firebase.js';
 import LandingPage from './components/LandingPage.jsx';
@@ -48,7 +49,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentView, setCurrentView] = useState<ViewName>(() => {
     try {
-      const saved = localStorage.getItem('prospectos_current_view');
+      const uid = getCurrentUserId();
+      const saved = localStorage.getItem(`prospectos_${uid}_current_view`) || localStorage.getItem('prospectos_current_view');
       if (
         saved &&
         ['dashboard', 'prospects', 'clients', 'tasks', 'calendar', 'analytics', 'settings'].includes(saved)
@@ -61,9 +63,11 @@ export default function App() {
 
   useEffect(() => {
     try {
+      const uid = currentUser?.id || getCurrentUserId();
+      localStorage.setItem(`prospectos_${uid}_current_view`, currentView);
       localStorage.setItem('prospectos_current_view', currentView);
     } catch {}
-  }, [currentView]);
+  }, [currentView, currentUser]);
   const [unauthView, setUnauthView] = useState<'landing' | 'login' | 'register'>('landing');
 
   // Command-K Search Overlay
@@ -85,10 +89,21 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) {
+      try {
+        localStorage.setItem('prospectos_user', JSON.stringify(currentUser));
+        const savedView = localStorage.getItem(`prospectos_${currentUser.id}_current_view`);
+        if (savedView && ['dashboard', 'prospects', 'clients', 'tasks', 'calendar', 'analytics', 'settings'].includes(savedView)) {
+          setCurrentView(savedView as ViewName);
+        }
+      } catch {}
       const isWelcomed = localStorage.getItem(`prospectos_welcomed_${currentUser.id}`);
       if (!isWelcomed) {
         setShowWelcomeModal(true);
       }
+    } else {
+      try {
+        localStorage.removeItem('prospectos_user');
+      } catch {}
     }
   }, [currentUser]);
 

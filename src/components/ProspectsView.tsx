@@ -30,7 +30,7 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { api } from '../lib/api.js';
-import { handleClientFallback } from '../lib/clientStorage.js';
+import { handleClientFallback, getCurrentUserId } from '../lib/clientStorage.js';
 import { Prospect, ProspectStatus } from '../types.js';
 import { AppleToast } from './AppleToast.jsx';
 import { SendEmailModal } from './SendEmailModal.jsx';
@@ -116,14 +116,16 @@ export default function ProspectsView() {
   const [loading, setLoading] = useState(true);
   const [mainViewMode, setMainViewMode] = useState<'interactive' | 'manual'>(() => {
     try {
-      const saved = localStorage.getItem('prospectos_main_view_mode');
+      const uid = getCurrentUserId();
+      const saved = localStorage.getItem(`prospectos_${uid}_main_view_mode`) || localStorage.getItem('prospectos_main_view_mode');
       if (saved === 'manual' || saved === 'interactive') return saved;
     } catch {}
     return 'interactive';
   });
   const [viewType, setViewType] = useState<'card' | 'table' | 'list'>(() => {
     try {
-      const saved = localStorage.getItem('prospectos_view_type');
+      const uid = getCurrentUserId();
+      const saved = localStorage.getItem(`prospectos_${uid}_view_type`) || localStorage.getItem('prospectos_view_type');
       if (saved === 'card' || saved === 'table' || saved === 'list') return saved;
     } catch {}
     return 'card';
@@ -131,12 +133,16 @@ export default function ProspectsView() {
 
   useEffect(() => {
     try {
+      const uid = getCurrentUserId();
+      localStorage.setItem(`prospectos_${uid}_main_view_mode`, mainViewMode);
       localStorage.setItem('prospectos_main_view_mode', mainViewMode);
     } catch {}
   }, [mainViewMode]);
 
   useEffect(() => {
     try {
+      const uid = getCurrentUserId();
+      localStorage.setItem(`prospectos_${uid}_view_type`, viewType);
       localStorage.setItem('prospectos_view_type', viewType);
     } catch {}
   }, [viewType]);

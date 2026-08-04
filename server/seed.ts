@@ -613,7 +613,7 @@ Sarah is very excited about the automated follow-up module in ProspectOS.
 }
 
 export function ensureUserSeeded(userId: string) {
-  if (userId) {
+  if (userId && (userId === 'usr_demo123' || userId.startsWith('guest_'))) {
     seedSampleForUser(userId);
   }
 }

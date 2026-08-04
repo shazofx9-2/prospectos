@@ -373,6 +373,71 @@ const DEFAULT_NOTES: Note[] = [
   },
 ];
 
+export function getCurrentUserId(): string {
+  try {
+    const raw = localStorage.getItem('prospectos_user');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.id) return parsed.id;
+    }
+    const token = localStorage.getItem('prospectos_token');
+    if (token) {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload && payload.id) return payload.id;
+      }
+    }
+  } catch (e) {}
+  return localStorage.getItem('prospectos_guest_id') || 'usr_demo123';
+}
+
+export function isDemoOrGuest(userId?: string): boolean {
+  const uid = userId || getCurrentUserId();
+  return uid === 'usr_demo123' || uid.startsWith('guest_') || uid === 'guest';
+}
+
+export function getUserStorageKey(type: string, userId?: string): string {
+  const uid = userId || getCurrentUserId();
+  return `prospectos_${uid}_${type}`;
+}
+
+export function getUserStoredData<T>(type: 'prospects' | 'clients' | 'tasks' | 'reminders' | 'notes', userId?: string): T[] {
+  const uid = userId || getCurrentUserId();
+  const key = getUserStorageKey(type, uid);
+  const isGuest = isDemoOrGuest(uid);
+
+  let initialDefault: any[] = [];
+  if (isGuest) {
+    if (type === 'prospects') initialDefault = DEFAULT_PROSPECTS;
+    else if (type === 'clients') initialDefault = DEFAULT_CLIENTS;
+    else if (type === 'tasks') initialDefault = DEFAULT_TASKS;
+    else if (type === 'reminders') initialDefault = DEFAULT_REMINDERS;
+    else if (type === 'notes') initialDefault = DEFAULT_NOTES;
+  }
+
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null || raw === undefined) {
+      localStorage.setItem(key, JSON.stringify(initialDefault));
+      return initialDefault as T[];
+    }
+    return JSON.parse(raw) as T[];
+  } catch {
+    return initialDefault as T[];
+  }
+}
+
+export function setUserStoredData<T>(type: 'prospects' | 'clients' | 'tasks' | 'reminders' | 'notes', val: T[], userId?: string): void {
+  const uid = userId || getCurrentUserId();
+  const key = getUserStorageKey(type, uid);
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch (e) {
+    console.error('Failed to write to localStorage', e);
+  }
+}
+
 export function getStored<T>(key: string, initial: T): T {
   try {
     const raw = localStorage.getItem(key);
@@ -396,36 +461,33 @@ export function setStored<T>(key: string, val: T): void {
 
 export function syncToClientStorage(url: string, method: string, options: any, resultData: any): void {
   const cleanUrl = url.split('?')[0];
+  const uid = getCurrentUserId();
 
   // Prospects
   if (cleanUrl.includes('/api/prospects')) {
-    let list = getStored<Prospect[]>('prospectos_prospects', DEFAULT_PROSPECTS);
+    let list = getUserStoredData<Prospect>('prospects', uid);
     if (method === 'GET' && Array.isArray(resultData)) {
-      const map = new Map<string, Prospect>();
-      list.forEach((p) => map.set(p.id, p));
-      resultData.forEach((p) => map.set(p.id, p));
-      const merged = Array.from(map.values());
-      setStored('prospectos_prospects', merged);
+      setUserStoredData('prospects', resultData, uid);
       return;
     }
     if (method === 'POST') {
       if (cleanUrl.includes('bulk-update')) {
         const { ids, updates } = JSON.parse(options?.body || '{}');
         list = list.map((p) => (ids.includes(p.id) ? { ...p, ...updates } : p));
-        setStored('prospectos_prospects', list);
+        setUserStoredData('prospects', list, uid);
         return;
       }
       if (cleanUrl.includes('bulk-delete')) {
         const { ids } = JSON.parse(options?.body || '{}');
         list = list.filter((p) => !ids.includes(p.id));
-        setStored('prospectos_prospects', list);
+        setUserStoredData('prospects', list, uid);
         return;
       }
       if (resultData && resultData.id) {
         const idx = list.findIndex((p) => p.id === resultData.id);
         if (idx >= 0) list[idx] = resultData;
         else list.unshift(resultData);
-        setStored('prospectos_prospects', list);
+        setUserStoredData('prospects', list, uid);
       }
     }
     if (method === 'PUT' || method === 'PATCH') {
@@ -436,24 +498,20 @@ export function syncToClientStorage(url: string, method: string, options: any, r
         const body = JSON.parse(options.body || '{}');
         list = list.map((p) => (p.id === id ? { ...p, ...body } : p));
       }
-      setStored('prospectos_prospects', list);
+      setUserStoredData('prospects', list, uid);
     }
     if (method === 'DELETE') {
       const id = cleanUrl.split('/').pop();
       list = list.filter((p) => p.id !== id);
-      setStored('prospectos_prospects', list);
+      setUserStoredData('prospects', list, uid);
     }
   }
 
   // Clients
   if (cleanUrl.includes('/api/clients')) {
-    let list = getStored<Client[]>('prospectos_clients', DEFAULT_CLIENTS);
+    let list = getUserStoredData<Client>('clients', uid);
     if (method === 'GET' && Array.isArray(resultData)) {
-      const map = new Map<string, Client>();
-      list.forEach((c) => map.set(c.id, c));
-      resultData.forEach((c) => map.set(c.id, c));
-      const merged = Array.from(map.values());
-      setStored('prospectos_clients', merged);
+      setUserStoredData('clients', resultData, uid);
       return;
     }
     if (method === 'POST') {
@@ -461,7 +519,7 @@ export function syncToClientStorage(url: string, method: string, options: any, r
         const idx = list.findIndex((c) => c.id === resultData.id);
         if (idx >= 0) list[idx] = resultData;
         else list.unshift(resultData);
-        setStored('prospectos_clients', list);
+        setUserStoredData('clients', list, uid);
       }
     }
     if (method === 'PUT' || method === 'PATCH') {
@@ -472,20 +530,21 @@ export function syncToClientStorage(url: string, method: string, options: any, r
         const body = JSON.parse(options.body || '{}');
         list = list.map((c) => (c.id === id ? { ...c, ...body } : c));
       }
-      setStored('prospectos_clients', list);
+      setUserStoredData('clients', list, uid);
     }
     if (method === 'DELETE') {
       const id = cleanUrl.split('/').pop();
       list = list.filter((c) => c.id !== id);
-      setStored('prospectos_clients', list);
+      setUserStoredData('clients', list, uid);
     }
   }
 }
 
 export function computeAnalyticsFallback() {
-  const prospects = getStored<Prospect[]>('prospectos_prospects', DEFAULT_PROSPECTS);
-  const clients = getStored<Client[]>('prospectos_clients', DEFAULT_CLIENTS);
-  const reminders = getStored<Reminder[]>('prospectos_reminders', DEFAULT_REMINDERS);
+  const uid = getCurrentUserId();
+  const prospects = getUserStoredData<Prospect>('prospects', uid);
+  const clients = getUserStoredData<Client>('clients', uid);
+  const reminders = getUserStoredData<Reminder>('reminders', uid);
 
   const totalProspects = prospects.length;
   const activeProspects = prospects.filter(
@@ -620,6 +679,7 @@ export function computeAnalyticsFallback() {
 
 export function handleClientFallback<T>(url: string, method: string, options: any): T {
   const cleanUrl = url.split('?')[0];
+  const uid = getCurrentUserId();
 
   // Auth
   if (cleanUrl.includes('/api/auth/me')) {
@@ -639,27 +699,27 @@ export function handleClientFallback<T>(url: string, method: string, options: an
 
   // Prospects
   if (cleanUrl.includes('/api/prospects')) {
-    let list = getStored<Prospect[]>('prospectos_prospects', DEFAULT_PROSPECTS);
+    let list = getUserStoredData<Prospect>('prospects', uid);
     if (method === 'GET') {
       return list as any;
     }
     if (method === 'POST' && cleanUrl.includes('bulk-update')) {
-      const { ids, updates } = JSON.parse(options.body || '{}');
+      const { ids, updates } = JSON.parse(options?.body || '{}');
       list = list.map((p) => (ids.includes(p.id) ? { ...p, ...updates } : p));
-      setStored('prospectos_prospects', list);
+      setUserStoredData('prospects', list, uid);
       return { success: true, updatedCount: ids.length } as any;
     }
     if (method === 'POST' && cleanUrl.includes('bulk-delete')) {
-      const { ids } = JSON.parse(options.body || '{}');
+      const { ids } = JSON.parse(options?.body || '{}');
       list = list.filter((p) => !ids.includes(p.id));
-      setStored('prospectos_prospects', list);
+      setUserStoredData('prospects', list, uid);
       return { success: true, deletedCount: ids.length } as any;
     }
     if (method === 'POST') {
-      const body = JSON.parse(options.body || '{}');
+      const body = JSON.parse(options?.body || '{}');
       const newP: Prospect = {
-        id: `prsp_${Date.now()}`,
-        userId: 'usr_demo123',
+        id: `prsp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: uid,
         businessName: body.businessName || 'New Prospect',
         ownerName: body.ownerName || '',
         email: body.email || '',
@@ -678,38 +738,70 @@ export function handleClientFallback<T>(url: string, method: string, options: an
         tags: body.tags || [],
         dateAdded: new Date().toISOString(),
         status: body.status || 'New',
+        nextFollowUpDate: body.nextFollowUpDate || null,
+        followUpStatus: body.followUpStatus || (body.nextFollowUpDate ? 'pending' : 'none'),
+        followUpNote: body.followUpNote || null,
       };
-      list.unshift(newP);
-      setStored('prospectos_prospects', list);
+
+      if (newP.status === 'Landed') {
+        let clientsList = getUserStoredData<Client>('clients', uid);
+        const newC: Client = {
+          id: `clnt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          userId: uid,
+          prospectId: newP.id,
+          businessName: newP.businessName,
+          contactName: newP.ownerName,
+          email: newP.email,
+          phone: newP.phone,
+          servicePurchased: body.servicePurchased || 'Standard Package',
+          contractValue: Number(body.contractValue) || 0,
+          monthlyRetainer: Number(body.monthlyRetainer) || 0,
+          startDate: new Date().toISOString().split('T')[0],
+          renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          deliveryDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          paymentStatus: 'Pending',
+          invoiceStatus: 'Sent',
+          notes: newP.notes,
+          priority: newP.priority,
+          internalNotes: 'Converted from Landed Prospect',
+          status: 'Active',
+        };
+        clientsList.unshift(newC);
+        setUserStoredData('clients', clientsList, uid);
+      } else {
+        list.unshift(newP);
+        setUserStoredData('prospects', list, uid);
+      }
+
       return newP as any;
     }
     if (method === 'PUT' || method === 'PATCH') {
       const id = cleanUrl.split('/').pop();
-      const body = JSON.parse(options.body || '{}');
+      const body = JSON.parse(options?.body || '{}');
       list = list.map((p) => (p.id === id ? { ...p, ...body } : p));
-      setStored('prospectos_prospects', list);
+      setUserStoredData('prospects', list, uid);
       const updated = list.find((p) => p.id === id);
-      return updated as any;
+      return (updated || body) as any;
     }
     if (method === 'DELETE') {
       const id = cleanUrl.split('/').pop();
       list = list.filter((p) => p.id !== id);
-      setStored('prospectos_prospects', list);
+      setUserStoredData('prospects', list, uid);
       return { success: true, message: 'Deleted' } as any;
     }
   }
 
   // Clients
   if (cleanUrl.includes('/api/clients')) {
-    let list = getStored<Client[]>('prospectos_clients', DEFAULT_CLIENTS);
+    let list = getUserStoredData<Client>('clients', uid);
     if (method === 'GET') {
       return list as any;
     }
     if (method === 'POST') {
-      const body = JSON.parse(options.body || '{}');
+      const body = JSON.parse(options?.body || '{}');
       const newC: Client = {
-        id: `clnt_${Date.now()}`,
-        userId: 'usr_demo123',
+        id: `clnt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: uid,
         businessName: body.businessName || 'New Client',
         contactName: body.contactName || '',
         email: body.email || '',
@@ -728,69 +820,69 @@ export function handleClientFallback<T>(url: string, method: string, options: an
         status: body.status || 'Active',
       };
       list.unshift(newC);
-      setStored('prospectos_clients', list);
+      setUserStoredData('clients', list, uid);
       return newC as any;
     }
     if (method === 'PUT' || method === 'PATCH') {
       const id = cleanUrl.split('/').pop();
-      const body = JSON.parse(options.body || '{}');
+      const body = JSON.parse(options?.body || '{}');
       list = list.map((c) => (c.id === id ? { ...c, ...body } : c));
-      setStored('prospectos_clients', list);
-      return list.find((c) => c.id === id) as any;
+      setUserStoredData('clients', list, uid);
+      return (list.find((c) => c.id === id) || body) as any;
     }
     if (method === 'DELETE') {
       const id = cleanUrl.split('/').pop();
       list = list.filter((c) => c.id !== id);
-      setStored('prospectos_clients', list);
+      setUserStoredData('clients', list, uid);
       return { success: true, message: 'Deleted' } as any;
     }
   }
 
   // Tasks
   if (cleanUrl.includes('/api/tasks')) {
-    let list = getStored<Task[]>('prospectos_tasks', DEFAULT_TASKS);
+    let list = getUserStoredData<Task>('tasks', uid);
     if (method === 'GET') return list as any;
     if (method === 'POST') {
-      const body = JSON.parse(options.body || '{}');
+      const body = JSON.parse(options?.body || '{}');
       const newT: Task = {
-        id: `task_${Date.now()}`,
-        userId: 'usr_demo123',
+        id: `task_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: uid,
         clientId: body.clientId || '',
         title: body.title || 'Task',
         description: body.description || '',
         isCompleted: false,
         dueDate: body.dueDate || new Date().toISOString().split('T')[0],
         priority: body.priority || 'Medium',
-        assignedTo: body.assignedTo || 'Demo User',
+        assignedTo: body.assignedTo || 'User',
       };
       list.unshift(newT);
-      setStored('prospectos_tasks', list);
+      setUserStoredData('tasks', list, uid);
       return newT as any;
     }
     if (method === 'PUT' || method === 'PATCH') {
       const id = cleanUrl.split('/').pop();
-      const body = JSON.parse(options.body || '{}');
+      const body = JSON.parse(options?.body || '{}');
       list = list.map((t) => (t.id === id ? { ...t, ...body } : t));
-      setStored('prospectos_tasks', list);
-      return list.find((t) => t.id === id) as any;
+      setUserStoredData('tasks', list, uid);
+      return (list.find((t) => t.id === id) || body) as any;
     }
     if (method === 'DELETE') {
       const id = cleanUrl.split('/').pop();
       list = list.filter((t) => t.id !== id);
-      setStored('prospectos_tasks', list);
+      setUserStoredData('tasks', list, uid);
       return { success: true, message: 'Deleted' } as any;
     }
   }
 
   // Reminders
   if (cleanUrl.includes('/api/reminders')) {
-    let list = getStored<Reminder[]>('prospectos_reminders', DEFAULT_REMINDERS);
+    let list = getUserStoredData<Reminder>('reminders', uid);
     if (method === 'GET') return list as any;
     if (method === 'POST') {
-      const body = JSON.parse(options.body || '{}');
+      const body = JSON.parse(options?.body || '{}');
       const newR: Reminder = {
-        id: `rem_${Date.now()}`,
-        userId: 'usr_demo123',
+        id: `rem_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: uid,
         prospectId: body.prospectId,
         clientId: body.clientId,
         title: body.title || 'Reminder',
@@ -801,33 +893,33 @@ export function handleClientFallback<T>(url: string, method: string, options: an
         intervalDays: body.intervalDays,
       };
       list.unshift(newR);
-      setStored('prospectos_reminders', list);
+      setUserStoredData('reminders', list, uid);
       return newR as any;
     }
     if (method === 'PUT' || method === 'PATCH') {
       const id = cleanUrl.split('/').pop();
-      const body = JSON.parse(options.body || '{}');
+      const body = JSON.parse(options?.body || '{}');
       list = list.map((r) => (r.id === id ? { ...r, ...body } : r));
-      setStored('prospectos_reminders', list);
-      return list.find((r) => r.id === id) as any;
+      setUserStoredData('reminders', list, uid);
+      return (list.find((r) => r.id === id) || body) as any;
     }
     if (method === 'DELETE') {
       const id = cleanUrl.split('/').pop();
       list = list.filter((r) => r.id !== id);
-      setStored('prospectos_reminders', list);
+      setUserStoredData('reminders', list, uid);
       return { success: true, message: 'Deleted' } as any;
     }
   }
 
   // Notes
   if (cleanUrl.includes('/api/notes')) {
-    let list = getStored<Note[]>('prospectos_notes', DEFAULT_NOTES);
+    let list = getUserStoredData<Note>('notes', uid);
     if (method === 'GET') return list as any;
     if (method === 'POST') {
-      const body = JSON.parse(options.body || '{}');
+      const body = JSON.parse(options?.body || '{}');
       const newN: Note = {
-        id: `note_${Date.now()}`,
-        userId: 'usr_demo123',
+        id: `note_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: uid,
         prospectId: body.prospectId,
         clientId: body.clientId,
         title: body.title || 'Note',
@@ -837,28 +929,28 @@ export function handleClientFallback<T>(url: string, method: string, options: an
         updatedAt: new Date().toISOString(),
       };
       list.unshift(newN);
-      setStored('prospectos_notes', list);
+      setUserStoredData('notes', list, uid);
       return newN as any;
     }
     if (method === 'PUT' || method === 'PATCH') {
       const id = cleanUrl.split('/').pop();
-      const body = JSON.parse(options.body || '{}');
+      const body = JSON.parse(options?.body || '{}');
       list = list.map((n) => (n.id === id ? { ...n, ...body } : n));
-      setStored('prospectos_notes', list);
-      return list.find((n) => n.id === id) as any;
+      setUserStoredData('notes', list, uid);
+      return (list.find((n) => n.id === id) || body) as any;
     }
     if (method === 'DELETE') {
       const id = cleanUrl.split('/').pop();
       list = list.filter((n) => n.id !== id);
-      setStored('prospectos_notes', list);
+      setUserStoredData('notes', list, uid);
       return { success: true, message: 'Deleted' } as any;
     }
   }
 
   // Follow ups
   if (cleanUrl.includes('/api/follow-ups')) {
-    const prospects = getStored<Prospect[]>('prospectos_prospects', DEFAULT_PROSPECTS);
-    const clients = getStored<Client[]>('prospectos_clients', DEFAULT_CLIENTS);
+    const prospects = getUserStoredData<Prospect>('prospects', uid);
+    const clients = getUserStoredData<Client>('clients', uid);
 
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
