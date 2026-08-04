@@ -1,4 +1,4 @@
-import { handleClientFallback } from './clientStorage.js';
+import { handleClientFallback, syncToClientStorage, getStored, DEFAULT_PROSPECTS, DEFAULT_CLIENTS } from './clientStorage.js';
 
 const BASE_URL = ''; // Relative paths proxy perfectly through Vite middleware
 
@@ -87,6 +87,18 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
       // Invalidate list caches on mutation
       clearApiCache();
     }
+
+    // Sync response data into local storage so client storage fallback is up to date
+    syncToClientStorage(url, method, options, data);
+
+    const cleanPath = url.split('?')[0];
+    if (method === 'GET' && cleanPath === '/api/prospects') {
+      return getStored('prospectos_prospects', DEFAULT_PROSPECTS) as T;
+    }
+    if (method === 'GET' && cleanPath === '/api/clients') {
+      return getStored('prospectos_clients', DEFAULT_CLIENTS) as T;
+    }
+
     return data as T;
   } catch (err: any) {
     // Network or parse error -> fallback to client storage & analytics engine

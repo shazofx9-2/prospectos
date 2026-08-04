@@ -46,7 +46,24 @@ type ViewName =
 export default function App() {
   const [token, setTokenState] = useState<string | null>(getToken());
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<ViewName>('dashboard');
+  const [currentView, setCurrentView] = useState<ViewName>(() => {
+    try {
+      const saved = localStorage.getItem('prospectos_current_view');
+      if (
+        saved &&
+        ['dashboard', 'prospects', 'clients', 'tasks', 'calendar', 'analytics', 'settings'].includes(saved)
+      ) {
+        return saved as ViewName;
+      }
+    } catch {}
+    return 'dashboard';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('prospectos_current_view', currentView);
+    } catch {}
+  }, [currentView]);
   const [unauthView, setUnauthView] = useState<'landing' | 'login' | 'register'>('landing');
 
   // Command-K Search Overlay
@@ -86,8 +103,12 @@ export default function App() {
       });
       setTokenState(savedToken);
     } else if (!savedToken) {
-      // Auto-assign a guest session if unauthenticated so prospects & clients are populated
-      const guestId = 'guest_' + Math.random().toString(36).substring(2, 9);
+      // Auto-assign a stable guest session if unauthenticated so prospects & clients are populated
+      let guestId = localStorage.getItem('prospectos_guest_id');
+      if (!guestId) {
+        guestId = 'guest_explorer_' + Math.random().toString(36).substring(2, 7);
+        localStorage.setItem('prospectos_guest_id', guestId);
+      }
       const guestUser = {
         id: guestId,
         email: 'guest@prospectos.com',

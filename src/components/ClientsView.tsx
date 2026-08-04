@@ -130,11 +130,7 @@ export default function ClientsView() {
     if (showLoading || clients.length === 0) setLoading(true);
     try {
       const data = await api.clients.list();
-      let activeList = data;
-      if (!Array.isArray(data) || data.length === 0) {
-        const fallback = handleClientFallback<Client[]>('/api/clients', 'GET', {});
-        activeList = Array.isArray(fallback) ? fallback : [];
-      }
+      const activeList = Array.isArray(data) ? data : [];
       setClients(activeList);
       if (selectedClient) {
         const matching = activeList.find((x) => x.id === selectedClient.id);

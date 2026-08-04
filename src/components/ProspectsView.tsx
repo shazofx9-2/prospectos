@@ -114,8 +114,32 @@ const INTERACTIVE_COLUMNS = [
 export default function ProspectsView() {
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mainViewMode, setMainViewMode] = useState<'interactive' | 'manual'>('interactive');
-  const [viewType, setViewType] = useState<'card' | 'table' | 'list'>('card');
+  const [mainViewMode, setMainViewMode] = useState<'interactive' | 'manual'>(() => {
+    try {
+      const saved = localStorage.getItem('prospectos_main_view_mode');
+      if (saved === 'manual' || saved === 'interactive') return saved;
+    } catch {}
+    return 'interactive';
+  });
+  const [viewType, setViewType] = useState<'card' | 'table' | 'list'>(() => {
+    try {
+      const saved = localStorage.getItem('prospectos_view_type');
+      if (saved === 'card' || saved === 'table' || saved === 'list') return saved;
+    } catch {}
+    return 'card';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('prospectos_main_view_mode', mainViewMode);
+    } catch {}
+  }, [mainViewMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('prospectos_view_type', viewType);
+    } catch {}
+  }, [viewType]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [selectedPriority, setSelectedPriority] = useState<string>('All');
@@ -216,12 +240,7 @@ export default function ProspectsView() {
     if (showLoading || prospects.length === 0) setLoading(true);
     try {
       const data = await api.prospects.list();
-      if (Array.isArray(data) && data.length > 0) {
-        setProspects(data);
-      } else {
-        const fallback = handleClientFallback<Prospect[]>('/api/prospects', 'GET', {});
-        setProspects(Array.isArray(fallback) ? fallback : []);
-      }
+      setProspects(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error('Error fetching prospects:', e);
       const fallback = handleClientFallback<Prospect[]>('/api/prospects', 'GET', {});

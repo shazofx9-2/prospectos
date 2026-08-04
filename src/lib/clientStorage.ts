@@ -90,7 +90,7 @@ export interface Note {
   updatedAt: string;
 }
 
-const DEFAULT_PROSPECTS: Prospect[] = [
+export const DEFAULT_PROSPECTS: Prospect[] = [
   {
     id: 'prsp_seed1',
     userId: 'usr_demo123',
@@ -247,7 +247,7 @@ const DEFAULT_PROSPECTS: Prospect[] = [
   },
 ];
 
-const DEFAULT_CLIENTS: Client[] = [
+export const DEFAULT_CLIENTS: Client[] = [
   {
     id: 'clnt_seed1',
     userId: 'usr_demo123',
@@ -373,29 +373,112 @@ const DEFAULT_NOTES: Note[] = [
   },
 ];
 
-function getStored<T>(key: string, initial: T): T {
+export function getStored<T>(key: string, initial: T): T {
   try {
     const raw = localStorage.getItem(key);
-    if (!raw) {
+    if (raw === null || raw === undefined) {
       localStorage.setItem(key, JSON.stringify(initial));
       return initial;
     }
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(initial) && Array.isArray(parsed) && parsed.length === 0) {
-      localStorage.setItem(key, JSON.stringify(initial));
-      return initial;
-    }
-    return parsed;
+    return JSON.parse(raw);
   } catch {
     return initial;
   }
 }
 
-function setStored<T>(key: string, val: T): void {
+export function setStored<T>(key: string, val: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(val));
   } catch (e) {
     console.error('Failed to write to localStorage', e);
+  }
+}
+
+export function syncToClientStorage(url: string, method: string, options: any, resultData: any): void {
+  const cleanUrl = url.split('?')[0];
+
+  // Prospects
+  if (cleanUrl.includes('/api/prospects')) {
+    let list = getStored<Prospect[]>('prospectos_prospects', DEFAULT_PROSPECTS);
+    if (method === 'GET' && Array.isArray(resultData)) {
+      const map = new Map<string, Prospect>();
+      list.forEach((p) => map.set(p.id, p));
+      resultData.forEach((p) => map.set(p.id, p));
+      const merged = Array.from(map.values());
+      setStored('prospectos_prospects', merged);
+      return;
+    }
+    if (method === 'POST') {
+      if (cleanUrl.includes('bulk-update')) {
+        const { ids, updates } = JSON.parse(options?.body || '{}');
+        list = list.map((p) => (ids.includes(p.id) ? { ...p, ...updates } : p));
+        setStored('prospectos_prospects', list);
+        return;
+      }
+      if (cleanUrl.includes('bulk-delete')) {
+        const { ids } = JSON.parse(options?.body || '{}');
+        list = list.filter((p) => !ids.includes(p.id));
+        setStored('prospectos_prospects', list);
+        return;
+      }
+      if (resultData && resultData.id) {
+        const idx = list.findIndex((p) => p.id === resultData.id);
+        if (idx >= 0) list[idx] = resultData;
+        else list.unshift(resultData);
+        setStored('prospectos_prospects', list);
+      }
+    }
+    if (method === 'PUT' || method === 'PATCH') {
+      const id = cleanUrl.split('/').pop();
+      if (resultData && resultData.id) {
+        list = list.map((p) => (p.id === id ? resultData : p));
+      } else if (options?.body) {
+        const body = JSON.parse(options.body || '{}');
+        list = list.map((p) => (p.id === id ? { ...p, ...body } : p));
+      }
+      setStored('prospectos_prospects', list);
+    }
+    if (method === 'DELETE') {
+      const id = cleanUrl.split('/').pop();
+      list = list.filter((p) => p.id !== id);
+      setStored('prospectos_prospects', list);
+    }
+  }
+
+  // Clients
+  if (cleanUrl.includes('/api/clients')) {
+    let list = getStored<Client[]>('prospectos_clients', DEFAULT_CLIENTS);
+    if (method === 'GET' && Array.isArray(resultData)) {
+      const map = new Map<string, Client>();
+      list.forEach((c) => map.set(c.id, c));
+      resultData.forEach((c) => map.set(c.id, c));
+      const merged = Array.from(map.values());
+      setStored('prospectos_clients', merged);
+      return;
+    }
+    if (method === 'POST') {
+      if (resultData && resultData.id) {
+        const idx = list.findIndex((c) => c.id === resultData.id);
+        if (idx >= 0) list[idx] = resultData;
+        else list.unshift(resultData);
+        setStored('prospectos_clients', list);
+      }
+    }
+    if (method === 'PUT' || method === 'PATCH') {
+      const id = cleanUrl.split('/').pop();
+      if (resultData && resultData.id) {
+        list = list.map((c) => (c.id === id ? resultData : c));
+      } else if (options?.body) {
+        const body = JSON.parse(options.body || '{}');
+        list = list.map((c) => (c.id === id ? { ...c, ...body } : c));
+      }
+      setStored('prospectos_clients', list);
+    }
+    if (method === 'DELETE') {
+      const id = cleanUrl.split('/').pop();
+      list = list.filter((c) => c.id !== id);
+      setStored('prospectos_clients', list);
+    }
   }
 }
 
