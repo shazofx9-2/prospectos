@@ -17,7 +17,7 @@ import {
   Menu
 } from 'lucide-react';
 
-import { getToken, removeToken, setToken, api } from './lib/api.js';
+import { getToken, removeToken, setToken, clearApiCache, api } from './lib/api.js';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './lib/firebase.js';
 import LandingPage from './components/LandingPage.jsx';
@@ -85,10 +85,22 @@ export default function App() {
         name: 'Guest Explorer'
       });
       setTokenState(savedToken);
+    } else if (!savedToken) {
+      // Auto-assign a guest session if unauthenticated so prospects & clients are populated
+      const guestId = 'guest_' + Math.random().toString(36).substring(2, 9);
+      const guestUser = {
+        id: guestId,
+        email: 'guest@prospectos.com',
+        name: 'Guest Explorer'
+      };
+      const tkn = `fb_${guestId}`;
+      setToken(tkn);
+      setTokenState(tkn);
+      setCurrentUser(guestUser);
     }
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user && user.emailVerified) {
+      if (user) {
         const u = {
           id: user.uid,
           email: user.email || '',
@@ -97,6 +109,7 @@ export default function App() {
         setCurrentUser(u);
         setTokenState(`fb_${user.uid}`);
         setToken(`fb_${user.uid}`);
+        clearApiCache();
         loadCurrentUser();
       } else {
         const currentTkn = getToken();

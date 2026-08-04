@@ -8,10 +8,12 @@ export function getToken(): string | null {
 
 export function setToken(token: string): void {
   localStorage.setItem('prospectos_token', token);
+  clearApiCache();
 }
 
 export function removeToken(): void {
   localStorage.removeItem('prospectos_token');
+  clearApiCache();
 }
 
 const cache: Record<string, any> = {};
@@ -33,7 +35,12 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     headers.set('Content-Type', 'application/json');
   }
 
-  if (method === 'GET' && cache[url] !== undefined) {
+  // Only return cached response if it's non-empty (to avoid stuck empty arrays)
+  const isNonEmptyCache =
+    cache[url] !== undefined &&
+    (!Array.isArray(cache[url]) || cache[url].length > 0);
+
+  if (method === 'GET' && isNonEmptyCache) {
     // Return cached data instantly while refreshing in background
     fetch(url, { ...options, headers })
       .then(async (res) => {
@@ -43,7 +50,9 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
         return res.json().catch(() => null);
       })
       .then((data) => {
-        if (data) cache[url] = data;
+        if (data && (!Array.isArray(data) || data.length > 0)) {
+          cache[url] = data;
+        }
       })
       .catch(() => {});
     return Promise.resolve(cache[url] as T);
@@ -63,6 +72,11 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({ error: 'An unknown error occurred' }));
+      // Fallback to client storage engine if unauthorized or server error
+      const fallbackResult = handleClientFallback<T>(url, method, options);
+      if (fallbackResult !== undefined && fallbackResult !== null) {
+        return fallbackResult;
+      }
       throw new Error(errData.error || `HTTP error! status: ${response.status}`);
     }
 
@@ -75,11 +89,12 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     }
     return data as T;
   } catch (err: any) {
-    if (err.message && err.message.startsWith('HTTP error!')) {
-      throw err;
-    }
     // Network or parse error -> fallback to client storage & analytics engine
-    return handleClientFallback<T>(url, method, options);
+    const fallback = handleClientFallback<T>(url, method, options);
+    if (fallback !== undefined && fallback !== null) {
+      return fallback;
+    }
+    throw err;
   }
 }
 

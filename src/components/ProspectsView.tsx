@@ -30,6 +30,7 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { api } from '../lib/api.js';
+import { handleClientFallback } from '../lib/clientStorage.js';
 import { Prospect, ProspectStatus } from '../types.js';
 import { AppleToast } from './AppleToast.jsx';
 import { SendEmailModal } from './SendEmailModal.jsx';
@@ -215,9 +216,16 @@ export default function ProspectsView() {
     if (showLoading || prospects.length === 0) setLoading(true);
     try {
       const data = await api.prospects.list();
-      setProspects(data);
+      if (Array.isArray(data) && data.length > 0) {
+        setProspects(data);
+      } else {
+        const fallback = handleClientFallback<Prospect[]>('/api/prospects', 'GET', {});
+        setProspects(Array.isArray(fallback) ? fallback : []);
+      }
     } catch (e) {
       console.error('Error fetching prospects:', e);
+      const fallback = handleClientFallback<Prospect[]>('/api/prospects', 'GET', {});
+      setProspects(Array.isArray(fallback) ? fallback : []);
     } finally {
       setLoading(false);
     }

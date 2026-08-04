@@ -22,6 +22,7 @@ import {
   Send
 } from 'lucide-react';
 import { api } from '../lib/api.js';
+import { handleClientFallback } from '../lib/clientStorage.js';
 import { Client, Task, FileMetadata, ClientStatus } from '../types.js';
 import { AppleToast } from './AppleToast.jsx';
 import { SendEmailModal } from './SendEmailModal.jsx';
@@ -129,14 +130,21 @@ export default function ClientsView() {
     if (showLoading || clients.length === 0) setLoading(true);
     try {
       const data = await api.clients.list();
-      setClients(data);
-      // Auto-re-select currently open client if updated
+      let activeList = data;
+      if (!Array.isArray(data) || data.length === 0) {
+        const fallback = handleClientFallback<Client[]>('/api/clients', 'GET', {});
+        activeList = Array.isArray(fallback) ? fallback : [];
+      }
+      setClients(activeList);
       if (selectedClient) {
-        const matching = data.find((x) => x.id === selectedClient.id);
+        const matching = activeList.find((x) => x.id === selectedClient.id);
         if (matching) setSelectedClient(matching);
       }
     } catch (e) {
       console.error(e);
+      const fallback = handleClientFallback<Client[]>('/api/clients', 'GET', {});
+      const activeList = Array.isArray(fallback) ? fallback : [];
+      setClients(activeList);
     } finally {
       setLoading(false);
     }
