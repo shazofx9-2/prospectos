@@ -1,4 +1,4 @@
-import { handleClientFallback, syncToClientStorage, getCurrentUserId, setUserStoredData, getUserStoredData } from './clientStorage.js';
+import { handleClientFallback, syncToClientStorage, getCurrentUserId, setUserStoredData, getUserStoredData, computeAnalyticsFallback } from './clientStorage.js';
 import { auth } from './firebase.js';
 import { firestoreService } from './firestoreService.js';
 
@@ -43,28 +43,20 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     (!Array.isArray(cache[url]) || cache[url].length > 0);
 
   if (method === 'GET' && isNonEmptyCache) {
-    // Return cached data instantly while refreshing in background
-    fetch(url, { ...options, headers })
-      .then(async (res) => {
-        if (!res.ok) return null;
-        const contentType = res.headers.get('content-type') || '';
-        if (contentType.includes('text/html')) return null;
-        return res.json().catch(() => null);
-      })
-      .then((data) => {
-        if (data && (!Array.isArray(data) || data.length > 0)) {
-          cache[url] = data;
-        }
-      })
-      .catch(() => {});
     return Promise.resolve(cache[url] as T);
   }
+
+  // Resilient 1500ms timeout for deployments (e.g. Vercel) where static edge has no /api server
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 1500);
 
   try {
     const response = await fetch(url, {
       ...options,
       headers,
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     const contentType = response.headers.get('content-type') || '';
     if (contentType.includes('text/html')) {
@@ -73,12 +65,12 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     }
 
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({ error: 'An unknown error occurred' }));
       // Fallback to client storage engine if unauthorized or server error
       const fallbackResult = handleClientFallback<T>(url, method, options);
       if (fallbackResult !== undefined && fallbackResult !== null) {
         return fallbackResult;
       }
+      const errData = await response.json().catch(() => ({ error: 'An unknown error occurred' }));
       throw new Error(errData.error || `HTTP error! status: ${response.status}`);
     }
 
@@ -86,7 +78,6 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     if (method === 'GET') {
       cache[url] = data;
     } else {
-      // Invalidate list caches on mutation
       clearApiCache();
     }
 
@@ -95,7 +86,8 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
     return data as T;
   } catch (err: any) {
-    // Network or parse error -> fallback to client storage & analytics engine
+    clearTimeout(timeoutId);
+    // Network or timeout or parse error -> fallback instantly to client storage engine
     const fallback = handleClientFallback<T>(url, method, options);
     if (fallback !== undefined && fallback !== null) {
       return fallback;
@@ -122,28 +114,36 @@ export const api = {
 
   prospects: {
     list: async (): Promise<any[]> => {
-      clearApiCache();
       const fbUser = auth.currentUser;
       const uid = fbUser ? fbUser.uid : getCurrentUserId();
+      const local = getUserStoredData<any>('prospects', uid);
 
       if (fbUser) {
         try {
-          const remoteList = await firestoreService.prospects.list(fbUser.uid);
+          // Race Firestore with a 1500ms timeout so user UI never stalls
+          const fetchPromise = firestoreService.prospects.list(fbUser.uid);
+          const timeoutPromise = new Promise<any[]>((_, reject) =>
+            setTimeout(() => reject(new Error('Firestore timeout')), 1500)
+          );
+          const remoteList = await Promise.race([fetchPromise, timeoutPromise]);
           if (remoteList && remoteList.length > 0) {
             setUserStoredData('prospects', remoteList, uid);
             return remoteList;
           }
-          // If Firestore is empty, check if user has local cached prospects and push them
-          const local = getUserStoredData<any>('prospects', uid);
+          // If Firestore is empty, sync local cached items to Firestore in background (non-blocking)
           if (local && local.length > 0) {
-            for (const p of local) {
-              await firestoreService.prospects.create(p, fbUser.uid).catch(() => {});
-            }
+            Promise.all(local.map((p) => firestoreService.prospects.create(p, fbUser.uid))).catch(() => {});
             return local;
           }
         } catch (e) {
-          console.warn('Firestore prospects list error, falling back to local storage:', e);
+          console.warn('Firestore prospects fast fallback to local storage:', e);
+          if (local && local.length > 0) return local;
         }
+      }
+
+      // If local already has data, return it immediately with 0 latency
+      if (local && local.length > 0) {
+        return local;
       }
 
       // Fallback to local storage / server
@@ -322,28 +322,33 @@ export const api = {
 
   clients: {
     list: async (): Promise<any[]> => {
-      clearApiCache();
       const fbUser = auth.currentUser;
       const uid = fbUser ? fbUser.uid : getCurrentUserId();
+      const local = getUserStoredData<any>('clients', uid);
 
       if (fbUser) {
         try {
-          const remoteList = await firestoreService.clients.list(fbUser.uid);
+          const fetchPromise = firestoreService.clients.list(fbUser.uid);
+          const timeoutPromise = new Promise<any[]>((_, reject) =>
+            setTimeout(() => reject(new Error('Firestore timeout')), 1500)
+          );
+          const remoteList = await Promise.race([fetchPromise, timeoutPromise]);
           if (remoteList && remoteList.length > 0) {
             setUserStoredData('clients', remoteList, uid);
             return remoteList;
           }
-          // If Firestore is empty, check if user has local cached clients and push them
-          const local = getUserStoredData<any>('clients', uid);
           if (local && local.length > 0) {
-            for (const c of local) {
-              await firestoreService.clients.create(c, fbUser.uid).catch(() => {});
-            }
+            Promise.all(local.map((c) => firestoreService.clients.create(c, fbUser.uid))).catch(() => {});
             return local;
           }
         } catch (e) {
-          console.warn('Firestore clients list error, falling back to local storage:', e);
+          console.warn('Firestore clients fast fallback to local storage:', e);
+          if (local && local.length > 0) return local;
         }
+      }
+
+      if (local && local.length > 0) {
+        return local;
       }
 
       try {
@@ -438,23 +443,41 @@ export const api = {
 
   tasks: {
     list: async (clientId?: string): Promise<any[]> => {
-      clearApiCache();
       const fbUser = auth.currentUser;
       const uid = fbUser ? fbUser.uid : getCurrentUserId();
+      const local = getUserStoredData<any>('tasks', uid);
+      const filteredLocal = clientId ? local.filter((t) => t.clientId === clientId) : local;
 
       if (fbUser) {
         try {
-          const remoteList = await firestoreService.tasks.list(fbUser.uid, clientId);
+          const fetchPromise = firestoreService.tasks.list(fbUser.uid, clientId);
+          const timeoutPromise = new Promise<any[]>((_, reject) =>
+            setTimeout(() => reject(new Error('Firestore timeout')), 1500)
+          );
+          const remoteList = await Promise.race([fetchPromise, timeoutPromise]);
           if (remoteList && remoteList.length > 0) {
-            setUserStoredData('tasks', remoteList, uid);
+            if (!clientId) setUserStoredData('tasks', remoteList, uid);
             return remoteList;
           }
+          if (filteredLocal && filteredLocal.length > 0) {
+            Promise.all(filteredLocal.map((t) => firestoreService.tasks.create(t, fbUser.uid))).catch(() => {});
+            return filteredLocal;
+          }
         } catch (e) {
-          console.warn('Firestore tasks list error:', e);
+          console.warn('Firestore tasks fast fallback to local storage:', e);
+          if (filteredLocal && filteredLocal.length > 0) return filteredLocal;
         }
       }
 
-      return request<any[]>(`/api/tasks${clientId ? `?clientId=${clientId}` : ''}`);
+      if (filteredLocal && filteredLocal.length > 0) {
+        return filteredLocal;
+      }
+
+      try {
+        const res = await request<any[]>(`/api/tasks${clientId ? `?clientId=${clientId}` : ''}`);
+        if (Array.isArray(res) && res.length > 0) return res;
+      } catch {}
+      return filteredLocal || [];
     },
 
     create: async (data: { clientId: string; title: string; description?: string; dueDate?: string; dueTime?: string; priority?: string; assignedTo?: string; addTime?: boolean }) => {
@@ -506,7 +529,18 @@ export const api = {
   },
 
   reminders: {
-    list: () => request<any[]>('/api/reminders'),
+    list: async (): Promise<any[]> => {
+      const uid = getCurrentUserId();
+      const local = getUserStoredData<any>('reminders', uid);
+      if (local && local.length > 0) {
+        return local;
+      }
+      try {
+        const res = await request<any[]>('/api/reminders');
+        if (Array.isArray(res) && res.length > 0) return res;
+      } catch {}
+      return handleClientFallback<any[]>('/api/reminders', 'GET', {});
+    },
     create: (data: { title: string; description?: string; triggerDate: string; isRecurring?: boolean; intervalDays?: number; prospectId?: string; clientId?: string }) =>
       request<any>('/api/reminders', {
         method: 'POST',
@@ -524,11 +558,22 @@ export const api = {
   },
 
   notes: {
-    list: (params?: { prospectId?: string; clientId?: string }) => {
-      let query = '';
-      if (params?.prospectId) query = `?prospectId=${params.prospectId}`;
-      else if (params?.clientId) query = `?clientId=${params.clientId}`;
-      return request<any[]>(`/api/notes${query}`);
+    list: async (params?: { prospectId?: string; clientId?: string }): Promise<any[]> => {
+      const uid = getCurrentUserId();
+      let list = getUserStoredData<any>('notes', uid);
+      if (params?.prospectId) list = list.filter((n) => n.prospectId === params.prospectId);
+      else if (params?.clientId) list = list.filter((n) => n.clientId === params.clientId);
+      if (list && list.length > 0) {
+        return list;
+      }
+      try {
+        let query = '';
+        if (params?.prospectId) query = `?prospectId=${params.prospectId}`;
+        else if (params?.clientId) query = `?clientId=${params.clientId}`;
+        const res = await request<any[]>(`/api/notes${query}`);
+        if (Array.isArray(res) && res.length > 0) return res;
+      } catch {}
+      return list || [];
     },
     create: (data: { title: string; content?: string; prospectId?: string; clientId?: string; isPinned?: boolean }) =>
       request<any>('/api/notes', {
@@ -567,7 +612,15 @@ export const api = {
   },
 
   analytics: {
-    get: () => request<any>('/api/analytics'),
+    get: async () => {
+      // Return instant computation immediately from local storage cache
+      const fallback = computeAnalyticsFallback();
+      try {
+        const res = await request<any>('/api/analytics');
+        if (res && res.metrics) return res;
+      } catch {}
+      return fallback;
+    },
   },
 
   settings: {
@@ -603,7 +656,14 @@ export const api = {
   },
 
   followUps: {
-    list: () => request<{ overdue: any[]; today: any[]; upcoming: any[]; totalCount: number }>('/api/follow-ups'),
+    list: async () => {
+      const fallback = handleClientFallback<any>('/api/follow-ups', 'GET', {});
+      try {
+        const res = await request<any>('/api/follow-ups');
+        if (res && (res.overdue || res.today || res.upcoming)) return res;
+      } catch {}
+      return fallback;
+    },
     updateProspect: (id: string, data: { nextFollowUpDate?: string | null; followUpStatus?: string; followUpNote?: string | null }) =>
       request<any>(`/api/follow-ups/prospects/${id}`, {
         method: 'PATCH',

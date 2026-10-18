@@ -15,6 +15,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { api } from '../lib/api.js';
+import { getCurrentUserId, getUserStoredData } from '../lib/clientStorage.js';
 import { Client, Task, Reminder } from '../types.js';
 import { AppleToast } from './AppleToast.jsx';
 
@@ -30,11 +31,39 @@ interface CalendarEvent {
 }
 
 export default function CalendarView() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [prospects, setProspects] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState<Client[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      const local = getUserStoredData<Client>('clients', uid);
+      if (Array.isArray(local) && local.length > 0) return local;
+    } catch {}
+    return [];
+  });
+  const [prospects, setProspects] = useState<any[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      const local = getUserStoredData<any>('prospects', uid);
+      if (Array.isArray(local) && local.length > 0) return local;
+    } catch {}
+    return [];
+  });
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      const local = getUserStoredData<Task>('tasks', uid);
+      if (Array.isArray(local) && local.length > 0) return local;
+    } catch {}
+    return [];
+  });
+  const [reminders, setReminders] = useState<Reminder[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      const local = getUserStoredData<Reminder>('reminders', uid);
+      if (Array.isArray(local) && local.length > 0) return local;
+    } catch {}
+    return [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => clients.length === 0 && tasks.length === 0);
 
   // Selected Day for Detail Sheet / Quick Add
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -91,7 +120,7 @@ export default function CalendarView() {
   };
 
   async function loadCalendarData(showLoading = false) {
-    if (showLoading || (clients.length === 0 && tasks.length === 0)) setLoading(true);
+    if (showLoading && clients.length === 0 && tasks.length === 0) setLoading(true);
     try {
       const [clientsRes, prospectsRes, tasksRes, remindersRes] = await Promise.all([
         api.clients.list(),
@@ -99,10 +128,10 @@ export default function CalendarView() {
         api.tasks.list(),
         api.reminders.list()
       ]);
-      setClients(clientsRes);
-      setProspects(prospectsRes);
-      setTasks(tasksRes);
-      setReminders(remindersRes);
+      if (Array.isArray(clientsRes) && clientsRes.length > 0) setClients(clientsRes);
+      if (Array.isArray(prospectsRes) && prospectsRes.length > 0) setProspects(prospectsRes);
+      if (Array.isArray(tasksRes) && tasksRes.length > 0) setTasks(tasksRes);
+      if (Array.isArray(remindersRes) && remindersRes.length > 0) setReminders(remindersRes);
     } catch (e) {
       console.error(e);
     } finally {

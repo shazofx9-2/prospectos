@@ -21,26 +21,62 @@ import { AnalyticsPayload, Prospect, Client, Task, Reminder, Note } from '../typ
 import { SendEmailModal } from './SendEmailModal.jsx';
 import { AppleToast } from './AppleToast.jsx';
 import { formatCurrency } from '../lib/currency.js';
+import { computeAnalyticsFallback, getCurrentUserId, getUserStoredData, handleClientFallback } from '../lib/clientStorage.js';
 
 interface DashboardViewProps {
   onNavigate: (tab: any) => void;
 }
 
 export default function DashboardView({ onNavigate }: DashboardViewProps) {
-  const [data, setData] = useState<AnalyticsPayload | null>(null);
-  const [prospects, setProspects] = useState<Prospect[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<AnalyticsPayload | null>(() => {
+    try {
+      return computeAnalyticsFallback();
+    } catch {}
+    return null;
+  });
+  const [prospects, setProspects] = useState<Prospect[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      return getUserStoredData<Prospect>('prospects', uid);
+    } catch {}
+    return [];
+  });
+  const [clients, setClients] = useState<Client[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      return getUserStoredData<Client>('clients', uid);
+    } catch {}
+    return [];
+  });
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      return getUserStoredData<Task>('tasks', uid);
+    } catch {}
+    return [];
+  });
+  const [reminders, setReminders] = useState<Reminder[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      return getUserStoredData<Reminder>('reminders', uid);
+    } catch {}
+    return [];
+  });
+  const [notes, setNotes] = useState<Note[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      return getUserStoredData<Note>('notes', uid);
+    } catch {}
+    return [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => !data);
 
   // Follow-Ups state
-  const [followUps, setFollowUps] = useState<{ overdue: any[]; today: any[]; upcoming: any[]; totalCount: number }>({
-    overdue: [],
-    today: [],
-    upcoming: [],
-    totalCount: 0
+  const [followUps, setFollowUps] = useState<{ overdue: any[]; today: any[]; upcoming: any[]; totalCount: number }>(() => {
+    try {
+      return handleClientFallback('/api/follow-ups', 'GET', {});
+    } catch {}
+    return { overdue: [], today: [], upcoming: [], totalCount: 0 };
   });
   const [activeFollowUpTab, setActiveFollowUpTab] = useState<'overdue' | 'today' | 'upcoming'>('overdue');
   const [selectedFollowUp, setSelectedFollowUp] = useState<any | null>(null);
@@ -75,7 +111,7 @@ export default function DashboardView({ onNavigate }: DashboardViewProps) {
 
   useEffect(() => {
     async function loadDashboard() {
-      setLoading(true);
+      if (!data) setLoading(true);
       try {
         const [analyticsRes, prospectsRes, clientsRes, tasksRes, remindersRes, notesRes, followUpsRes] = await Promise.allSettled([
           api.analytics.get(),

@@ -30,7 +30,7 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { api } from '../lib/api.js';
-import { handleClientFallback, getCurrentUserId } from '../lib/clientStorage.js';
+import { handleClientFallback, getCurrentUserId, getUserStoredData } from '../lib/clientStorage.js';
 import { Prospect, ProspectStatus, ClientStatus } from '../types.js';
 import { AppleToast } from './AppleToast.jsx';
 import { SendEmailModal } from './SendEmailModal.jsx';
@@ -112,8 +112,15 @@ const INTERACTIVE_COLUMNS = [
 ];
 
 export default function ProspectsView() {
-  const [prospects, setProspects] = useState<Prospect[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [prospects, setProspects] = useState<Prospect[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      const local = getUserStoredData<Prospect>('prospects', uid);
+      if (Array.isArray(local) && local.length > 0) return local;
+    } catch {}
+    return [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => prospects.length === 0);
   const [mainViewMode, setMainViewMode] = useState<'interactive' | 'manual'>(() => {
     try {
       const uid = getCurrentUserId();
@@ -253,14 +260,18 @@ export default function ProspectsView() {
   }, []);
 
   async function loadProspects(showLoading = false) {
-    if (showLoading || prospects.length === 0) setLoading(true);
+    if (showLoading && prospects.length === 0) setLoading(true);
     try {
       const data = await api.prospects.list();
-      setProspects(Array.isArray(data) ? data : []);
+      if (Array.isArray(data) && data.length > 0) {
+        setProspects(data);
+      }
     } catch (e) {
       console.error('Error fetching prospects:', e);
       const fallback = handleClientFallback<Prospect[]>('/api/prospects', 'GET', {});
-      setProspects(Array.isArray(fallback) ? fallback : []);
+      if (Array.isArray(fallback) && fallback.length > 0) {
+        setProspects(fallback);
+      }
     } finally {
       setLoading(false);
     }

@@ -22,7 +22,7 @@ import {
   Send
 } from 'lucide-react';
 import { api } from '../lib/api.js';
-import { handleClientFallback } from '../lib/clientStorage.js';
+import { handleClientFallback, getCurrentUserId, getUserStoredData } from '../lib/clientStorage.js';
 import { Client, Task, FileMetadata, ClientStatus } from '../types.js';
 import { AppleToast } from './AppleToast.jsx';
 import { SendEmailModal } from './SendEmailModal.jsx';
@@ -38,9 +38,23 @@ const CLIENT_STATUSES: ClientStatus[] = [
 ];
 
 export default function ClientsView() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState<Client[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      const local = getUserStoredData<Client>('clients', uid);
+      if (Array.isArray(local) && local.length > 0) return local;
+    } catch {}
+    return [];
+  });
+  const [selectedClient, setSelectedClient] = useState<Client | null>(() => {
+    try {
+      const uid = getCurrentUserId();
+      const local = getUserStoredData<Client>('clients', uid);
+      if (Array.isArray(local) && local.length > 0) return local[0];
+    } catch {}
+    return null;
+  });
+  const [loading, setLoading] = useState<boolean>(() => clients.length === 0);
 
   // Detail panel states
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -127,20 +141,26 @@ export default function ClientsView() {
   };
 
   async function loadClients(showLoading = false) {
-    if (showLoading || clients.length === 0) setLoading(true);
+    if (showLoading && clients.length === 0) setLoading(true);
     try {
       const data = await api.clients.list();
       const activeList = Array.isArray(data) ? data : [];
-      setClients(activeList);
-      if (selectedClient) {
-        const matching = activeList.find((x) => x.id === selectedClient.id);
-        if (matching) setSelectedClient(matching);
+      if (activeList.length > 0) {
+        setClients(activeList);
+        if (selectedClient) {
+          const matching = activeList.find((x) => x.id === selectedClient.id);
+          if (matching) setSelectedClient(matching);
+        } else if (activeList[0]) {
+          setSelectedClient(activeList[0]);
+        }
       }
     } catch (e) {
       console.error(e);
       const fallback = handleClientFallback<Client[]>('/api/clients', 'GET', {});
       const activeList = Array.isArray(fallback) ? fallback : [];
-      setClients(activeList);
+      if (activeList.length > 0) {
+        setClients(activeList);
+      }
     } finally {
       setLoading(false);
     }

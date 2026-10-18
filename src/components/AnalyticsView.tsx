@@ -29,10 +29,16 @@ import {
 import { api } from '../lib/api.js';
 import { AnalyticsPayload } from '../types.js';
 import { formatCurrency, getCurrencySymbol } from '../lib/currency.js';
+import { computeAnalyticsFallback } from '../lib/clientStorage.js';
 
 export default function AnalyticsView() {
-  const [data, setData] = useState<AnalyticsPayload | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<AnalyticsPayload | null>(() => {
+    try {
+      return computeAnalyticsFallback();
+    } catch {}
+    return null;
+  });
+  const [loading, setLoading] = useState<boolean>(() => !data);
 
   const emptyAnalytics: AnalyticsPayload = {
     metrics: {
@@ -64,17 +70,17 @@ export default function AnalyticsView() {
 
   useEffect(() => {
     async function loadAnalytics() {
-      setLoading(true);
+      if (!data) setLoading(true);
       try {
         const res = await api.analytics.get();
         if (res && res.metrics) {
           setData(res);
-        } else {
+        } else if (!data) {
           setData(emptyAnalytics);
         }
       } catch (e) {
         console.error('Error fetching analytics:', e);
-        setData(emptyAnalytics);
+        if (!data) setData(emptyAnalytics);
       } finally {
         setLoading(false);
       }

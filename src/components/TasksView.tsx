@@ -2,13 +2,28 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckSquare, Clock, Plus, Trash2, Calendar, User, Briefcase, Filter, X, RefreshCw } from 'lucide-react';
 import { api } from '../lib/api.js';
+import { getCurrentUserId, getUserStoredData } from '../lib/clientStorage.js';
 import { Task, Client } from '../types.js';
 import { AppleToast } from './AppleToast.jsx';
 
 export default function TasksView() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      const local = getUserStoredData<Task>('tasks', uid);
+      if (Array.isArray(local) && local.length > 0) return local;
+    } catch {}
+    return [];
+  });
+  const [clients, setClients] = useState<Client[]>(() => {
+    try {
+      const uid = getCurrentUserId();
+      const local = getUserStoredData<Client>('clients', uid);
+      if (Array.isArray(local) && local.length > 0) return local;
+    } catch {}
+    return [];
+  });
+  const [loading, setLoading] = useState<boolean>(() => tasks.length === 0);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Completed'>('Pending');
@@ -71,14 +86,14 @@ export default function TasksView() {
   };
 
   async function loadTasksAndClients(showLoading = false) {
-    if (showLoading || tasks.length === 0) setLoading(true);
+    if (showLoading && tasks.length === 0) setLoading(true);
     try {
       const [tasksRes, clientsRes] = await Promise.all([
         api.tasks.list(),
         api.clients.list()
       ]);
-      setTasks(tasksRes);
-      setClients(clientsRes);
+      if (Array.isArray(tasksRes) && tasksRes.length > 0) setTasks(tasksRes);
+      if (Array.isArray(clientsRes) && clientsRes.length > 0) setClients(clientsRes);
     } catch (e) {
       console.error(e);
     } finally {
