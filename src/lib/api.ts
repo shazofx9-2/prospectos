@@ -1,4 +1,6 @@
-import { handleClientFallback, syncToClientStorage, getStored, DEFAULT_PROSPECTS, DEFAULT_CLIENTS } from './clientStorage.js';
+import { handleClientFallback, syncToClientStorage, getCurrentUserId, setUserStoredData, getUserStoredData } from './clientStorage.js';
+import { auth } from './firebase.js';
+import { firestoreService } from './firestoreService.js';
 
 const BASE_URL = ''; // Relative paths proxy perfectly through Vite middleware
 
@@ -119,68 +121,384 @@ export const api = {
   },
 
   prospects: {
-    list: () => request<any[]>('/api/prospects'),
-    create: (data: any) =>
+    list: async (): Promise<any[]> => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      if (fbUser) {
+        try {
+          const remoteList = await firestoreService.prospects.list(fbUser.uid);
+          if (remoteList && remoteList.length > 0) {
+            setUserStoredData('prospects', remoteList, uid);
+            return remoteList;
+          }
+          // If Firestore is empty, check if user has local cached prospects and push them
+          const local = getUserStoredData<any>('prospects', uid);
+          if (local && local.length > 0) {
+            for (const p of local) {
+              await firestoreService.prospects.create(p, fbUser.uid).catch(() => {});
+            }
+            return local;
+          }
+        } catch (e) {
+          console.warn('Firestore prospects list error, falling back to local storage:', e);
+        }
+      }
+
+      // Fallback to local storage / server
+      try {
+        const res = await request<any[]>('/api/prospects');
+        if (Array.isArray(res) && res.length > 0) return res;
+      } catch {}
+      return handleClientFallback<any[]>('/api/prospects', 'GET', {});
+    },
+
+    create: async (data: any): Promise<any> => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      let createdProspect = data;
+      if (fbUser) {
+        try {
+          createdProspect = await firestoreService.prospects.create(data, fbUser.uid);
+        } catch (e) {
+          console.warn('Firestore prospects create error:', e);
+        }
+      }
+
+      // Also persist to local storage cache
+      let list = getUserStoredData<any>('prospects', uid);
+      const newP = {
+        ...createdProspect,
+        id: createdProspect.id || `prsp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: uid,
+      };
+      list.unshift(newP);
+      setUserStoredData('prospects', list, uid);
+
+      // Attempt server push if available
       request<any>('/api/prospects', {
         method: 'POST',
-        body: JSON.stringify(data),
-      }),
-    update: (id: string, data: any) =>
+        body: JSON.stringify(newP),
+      }).catch(() => {});
+
+      return newP;
+    },
+
+    update: async (id: string, data: any): Promise<any> => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      // If converted to Landed, convert to client
+      if (data.status === 'Landed') {
+        let prospectsList = getUserStoredData<any>('prospects', uid);
+        const existingP = prospectsList.find((p) => p.id === id);
+        prospectsList = prospectsList.filter((p) => p.id !== id);
+        setUserStoredData('prospects', prospectsList, uid);
+
+        const newClient = {
+          id: `clnt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          userId: uid,
+          prospectId: id,
+          businessName: data.businessName || existingP?.businessName || 'New Client',
+          contactName: data.contactName || data.ownerName || existingP?.ownerName || 'Contact',
+          email: data.email !== undefined ? data.email : (existingP?.email || ''),
+          phone: data.phone !== undefined ? data.phone : (existingP?.phone || ''),
+          servicePurchased: data.servicePurchased || 'Premium CRM Implementation',
+          contractValue: Number(data.contractValue) || 12000,
+          monthlyRetainer: data.contractType === 'one_time' ? 0 : (Number(data.monthlyRetainer) || 1500),
+          startDate: data.startDate || new Date().toISOString().split('T')[0],
+          renewalDate: data.renewalDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          deliveryDate: data.deliveryDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          paymentStatus: data.paymentStatus || 'Pending',
+          invoiceStatus: data.invoiceStatus || 'Sent',
+          notes: data.notes !== undefined ? data.notes : (existingP?.notes || ''),
+          priority: data.priority || existingP?.priority || 'Medium',
+          internalNotes: data.internalNotes || 'Converted from Landed Prospect',
+          status: data.clientStatus || 'Active',
+          nextFollowUpDate: data.nextFollowUpDate || null,
+          followUpStatus: data.nextFollowUpDate ? 'pending' : 'none',
+          followUpNote: data.followUpNote || null,
+        };
+
+        let clientsList = getUserStoredData<any>('clients', uid);
+        clientsList.unshift(newClient);
+        setUserStoredData('clients', clientsList, uid);
+
+        if (fbUser) {
+          await firestoreService.prospects.delete(id).catch(() => {});
+          await firestoreService.clients.create(newClient, fbUser.uid).catch(() => {});
+        }
+
+        request<any>(`/api/prospects/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        }).catch(() => {});
+
+        return { success: true, message: 'Converted to client', client: newClient };
+      }
+
+      if (fbUser) {
+        await firestoreService.prospects.update(id, data, fbUser.uid).catch(() => {});
+      }
+
+      let list = getUserStoredData<any>('prospects', uid);
+      list = list.map((p) => (p.id === id ? { ...p, ...data } : p));
+      setUserStoredData('prospects', list, uid);
+
       request<any>(`/api/prospects/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
-      }),
-    delete: (id: string) =>
+      }).catch(() => {});
+
+      return list.find((p) => p.id === id) || data;
+    },
+
+    delete: async (id: string): Promise<{ success: boolean; message: string }> => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      if (fbUser) {
+        await firestoreService.prospects.delete(id).catch(() => {});
+      }
+
+      let list = getUserStoredData<any>('prospects', uid);
+      list = list.filter((p) => p.id !== id);
+      setUserStoredData('prospects', list, uid);
+
       request<{ success: boolean; message: string }>(`/api/prospects/${id}`, {
         method: 'DELETE',
-      }),
-    bulkUpdate: (ids: string[], updates: any) =>
-      request<{ success: boolean; updatedCount: number }>('/api/prospects/bulk-update', {
+      }).catch(() => {});
+
+      return { success: true, message: 'Deleted' };
+    },
+
+    bulkUpdate: async (ids: string[], updates: any): Promise<{ success: boolean; updatedCount: number }> => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      if (fbUser) {
+        await firestoreService.prospects.bulkUpdate(ids, updates, fbUser.uid).catch(() => {});
+      }
+
+      let list = getUserStoredData<any>('prospects', uid);
+      list = list.map((p) => (ids.includes(p.id) ? { ...p, ...updates } : p));
+      setUserStoredData('prospects', list, uid);
+
+      request<any>('/api/prospects/bulk-update', {
         method: 'POST',
         body: JSON.stringify({ ids, updates }),
-      }),
-    bulkDelete: (ids: string[]) =>
-      request<{ success: boolean; deletedCount: number }>('/api/prospects/bulk-delete', {
+      }).catch(() => {});
+
+      return { success: true, updatedCount: ids.length };
+    },
+
+    bulkDelete: async (ids: string[]): Promise<{ success: boolean; deletedCount: number }> => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      if (fbUser) {
+        await firestoreService.prospects.bulkDelete(ids).catch(() => {});
+      }
+
+      let list = getUserStoredData<any>('prospects', uid);
+      list = list.filter((p) => !ids.includes(p.id));
+      setUserStoredData('prospects', list, uid);
+
+      request<any>('/api/prospects/bulk-delete', {
         method: 'POST',
         body: JSON.stringify({ ids }),
-      }),
+      }).catch(() => {});
+
+      return { success: true, deletedCount: ids.length };
+    },
   },
 
   clients: {
-    list: () => request<any[]>('/api/clients'),
-    create: (data: any) =>
+    list: async (): Promise<any[]> => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      if (fbUser) {
+        try {
+          const remoteList = await firestoreService.clients.list(fbUser.uid);
+          if (remoteList && remoteList.length > 0) {
+            setUserStoredData('clients', remoteList, uid);
+            return remoteList;
+          }
+          // If Firestore is empty, check if user has local cached clients and push them
+          const local = getUserStoredData<any>('clients', uid);
+          if (local && local.length > 0) {
+            for (const c of local) {
+              await firestoreService.clients.create(c, fbUser.uid).catch(() => {});
+            }
+            return local;
+          }
+        } catch (e) {
+          console.warn('Firestore clients list error, falling back to local storage:', e);
+        }
+      }
+
+      try {
+        const res = await request<any[]>('/api/clients');
+        if (Array.isArray(res) && res.length > 0) return res;
+      } catch {}
+      return handleClientFallback<any[]>('/api/clients', 'GET', {});
+    },
+
+    create: async (data: any): Promise<any> => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      let createdClient = data;
+      if (fbUser) {
+        try {
+          createdClient = await firestoreService.clients.create(data, fbUser.uid);
+        } catch (e) {
+          console.warn('Firestore clients create error:', e);
+        }
+      }
+
+      let list = getUserStoredData<any>('clients', uid);
+      const newC = {
+        ...createdClient,
+        id: createdClient.id || `clnt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: uid,
+      };
+      list.unshift(newC);
+      setUserStoredData('clients', list, uid);
+
       request<any>('/api/clients', {
         method: 'POST',
-        body: JSON.stringify(data),
-      }),
-    update: (id: string, data: any) =>
+        body: JSON.stringify(newC),
+      }).catch(() => {});
+
+      return newC;
+    },
+
+    update: async (id: string, data: any): Promise<any> => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      if (fbUser) {
+        await firestoreService.clients.update(id, data, fbUser.uid).catch(() => {});
+      }
+
+      let list = getUserStoredData<any>('clients', uid);
+      list = list.map((c) => (c.id === id ? { ...c, ...data } : c));
+      setUserStoredData('clients', list, uid);
+
       request<any>(`/api/clients/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
-      }),
-    delete: (id: string) =>
+      }).catch(() => {});
+
+      return list.find((c) => c.id === id) || data;
+    },
+
+    delete: async (id: string): Promise<{ success: boolean; message: string }> => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      // 1. Delete from Firestore if authenticated
+      if (fbUser) {
+        await firestoreService.clients.delete(id).catch((err) => {
+          console.warn('Firestore client deletion notice:', err);
+        });
+      }
+
+      // 2. Delete immediately from client local storage
+      let list = getUserStoredData<any>('clients', uid);
+      list = list.filter((c) => c.id !== id);
+      setUserStoredData('clients', list, uid);
+
+      // Clean up linked tasks and reminders locally
+      let tasksList = getUserStoredData<any>('tasks', uid);
+      tasksList = tasksList.filter((t) => t.clientId !== id);
+      setUserStoredData('tasks', tasksList, uid);
+
+      // 3. Fire server request in background if available
       request<{ success: boolean; message: string }>(`/api/clients/${id}`, {
         method: 'DELETE',
-      }),
+      }).catch(() => {});
+
+      return { success: true, message: 'Deleted' };
+    },
   },
 
   tasks: {
-    list: (clientId?: string) =>
-      request<any[]>(`/api/tasks${clientId ? `?clientId=${clientId}` : ''}`),
-    create: (data: { clientId: string; title: string; description?: string; dueDate?: string; dueTime?: string; priority?: string; assignedTo?: string; addTime?: boolean }) =>
-      request<any>('/api/tasks', {
+    list: async (clientId?: string): Promise<any[]> => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      if (fbUser) {
+        try {
+          const remoteList = await firestoreService.tasks.list(fbUser.uid, clientId);
+          if (remoteList && remoteList.length > 0) {
+            setUserStoredData('tasks', remoteList, uid);
+            return remoteList;
+          }
+        } catch (e) {
+          console.warn('Firestore tasks list error:', e);
+        }
+      }
+
+      return request<any[]>(`/api/tasks${clientId ? `?clientId=${clientId}` : ''}`);
+    },
+
+    create: async (data: { clientId: string; title: string; description?: string; dueDate?: string; dueTime?: string; priority?: string; assignedTo?: string; addTime?: boolean }) => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      const uid = fbUser ? fbUser.uid : getCurrentUserId();
+
+      if (fbUser) {
+        try {
+          await firestoreService.tasks.create(data, fbUser.uid);
+        } catch (e) {
+          console.warn('Firestore tasks create error:', e);
+        }
+      }
+
+      return request<any>('/api/tasks', {
         method: 'POST',
         body: JSON.stringify(data),
-      }),
-    update: (id: string, data: any) =>
-      request<any>(`/api/tasks/${id}`, {
+      });
+    },
+
+    update: async (id: string, data: any) => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      if (fbUser) {
+        await firestoreService.tasks.update(id, data, fbUser.uid).catch(() => {});
+      }
+      return request<any>(`/api/tasks/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
-      }),
-    delete: (id: string) =>
-      request<{ success: boolean; message: string }>(`/api/tasks/${id}`, {
+      });
+    },
+
+    delete: async (id: string) => {
+      clearApiCache();
+      const fbUser = auth.currentUser;
+      if (fbUser) {
+        await firestoreService.tasks.delete(id).catch(() => {});
+      }
+      return request<{ success: boolean; message: string }>(`/api/tasks/${id}`, {
         method: 'DELETE',
-      }),
+      });
+    },
+
     syncGoogleCalendar: () =>
       request<{ success: boolean; syncedCount: number; totalCount: number; message: string }>('/api/tasks/sync-google-calendar', {
         method: 'POST',
@@ -251,6 +569,7 @@ export const api = {
   analytics: {
     get: () => request<any>('/api/analytics'),
   },
+
   settings: {
     export: () => request<any>('/api/settings/export'),
     import: (data: any) =>

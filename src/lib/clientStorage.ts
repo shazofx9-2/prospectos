@@ -408,12 +408,16 @@ export function getUserStoredData<T>(type: 'prospects' | 'clients' | 'tasks' | '
   const isGuest = isDemoOrGuest(uid);
 
   let initialDefault: any[] = [];
-  if (isGuest) {
-    if (type === 'prospects') initialDefault = DEFAULT_PROSPECTS;
-    else if (type === 'clients') initialDefault = DEFAULT_CLIENTS;
-    else if (type === 'tasks') initialDefault = DEFAULT_TASKS;
-    else if (type === 'reminders') initialDefault = DEFAULT_REMINDERS;
-    else if (type === 'notes') initialDefault = DEFAULT_NOTES;
+  if (type === 'prospects') {
+    initialDefault = DEFAULT_PROSPECTS.map((p) => ({ ...p, userId: uid }));
+  } else if (type === 'clients') {
+    initialDefault = DEFAULT_CLIENTS.map((c) => ({ ...c, userId: uid }));
+  } else if (type === 'tasks') {
+    initialDefault = DEFAULT_TASKS.map((t) => ({ ...t, userId: uid }));
+  } else if (type === 'reminders') {
+    initialDefault = DEFAULT_REMINDERS.map((r) => ({ ...r, userId: uid }));
+  } else if (type === 'notes') {
+    initialDefault = DEFAULT_NOTES.map((n) => ({ ...n, userId: uid }));
   }
 
   try {
@@ -422,7 +426,13 @@ export function getUserStoredData<T>(type: 'prospects' | 'clients' | 'tasks' | '
       localStorage.setItem(key, JSON.stringify(initialDefault));
       return initialDefault as T[];
     }
-    return JSON.parse(raw) as T[];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length === 0 && (type === 'prospects' || type === 'clients')) {
+      // If unexpectedly empty, re-seed starter data
+      localStorage.setItem(key, JSON.stringify(initialDefault));
+      return initialDefault as T[];
+    }
+    return parsed as T[];
   } catch {
     return initialDefault as T[];
   }

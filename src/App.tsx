@@ -31,6 +31,7 @@ import CalendarView from './components/CalendarView.jsx';
 import AnalyticsView from './components/AnalyticsView.jsx';
 import SettingsView from './components/SettingsView.jsx';
 import { WelcomeModal } from './components/WelcomeModal.js';
+import { WelcomeBackModal } from './components/WelcomeBackModal.js';
 import ProspectOSLogo from './components/ProspectOSLogo';
 
 import { Prospect, Client, Task, Note } from './types.js';
@@ -84,22 +85,16 @@ export default function App() {
   // Logout confirmation modal state
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  // Welcome onboarding modal state
+  // Welcome onboarding modal state (First-time users)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  // Welcome back modal state (Returning users)
+  const [showWelcomeBackModal, setShowWelcomeBackModal] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
       try {
         localStorage.setItem('prospectos_user', JSON.stringify(currentUser));
-        const savedView = localStorage.getItem(`prospectos_${currentUser.id}_current_view`);
-        if (savedView && ['dashboard', 'prospects', 'clients', 'tasks', 'calendar', 'analytics', 'settings'].includes(savedView)) {
-          setCurrentView(savedView as ViewName);
-        }
       } catch {}
-      const isWelcomed = localStorage.getItem(`prospectos_welcomed_${currentUser.id}`);
-      if (!isWelcomed) {
-        setShowWelcomeModal(true);
-      }
     } else {
       try {
         localStorage.removeItem('prospectos_user');
@@ -293,9 +288,16 @@ export default function App() {
     return (
       <AuthPage
         initialIsLogin={unauthView === 'login'}
-        onAuthSuccess={(user?: any) => {
+        onAuthSuccess={(user?: any, isNewUser?: boolean) => {
           const currentTkn = getToken();
           setTokenState(currentTkn);
+          // Always direct user directly to dashboard
+          setCurrentView('dashboard');
+          localStorage.setItem('prospectos_current_view', 'dashboard');
+          if (user?.id) {
+            localStorage.setItem(`prospectos_${user.id}_current_view`, 'dashboard');
+          }
+
           if (user) {
             setCurrentUser(user);
           } else if (currentTkn && currentTkn.startsWith('fb_guest_')) {
@@ -304,6 +306,16 @@ export default function App() {
               email: 'guest@prospectos.com',
               name: 'Guest Explorer'
             });
+          }
+
+          if (isNewUser) {
+            // New user account creation: show features walkthrough
+            setShowWelcomeModal(true);
+            setShowWelcomeBackModal(false);
+          } else {
+            // Returning user logging in: show welcome back page
+            setShowWelcomeModal(false);
+            setShowWelcomeBackModal(true);
           }
         }}
         onBackToLanding={() => setUnauthView('landing')}
@@ -385,11 +397,7 @@ export default function App() {
         <div className="pt-4 border-t border-white/5 space-y-3">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-              {currentUser?.id?.startsWith('guest_') || currentUser?.email === 'guest@prospectos.com' ? (
-                <Sparkles className="w-4 h-4 text-zinc-300" />
-              ) : (
-                <User className="w-4 h-4 text-zinc-300" />
-              )}
+              <User className="w-4 h-4 text-zinc-300" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
@@ -726,7 +734,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* FIRST-TIME WELCOME ONBOARDING MODAL */}
+      {/* FIRST-TIME WELCOME ONBOARDING MODAL (FEATURES WALKTHROUGH) */}
       <AnimatePresence>
         {showWelcomeModal && currentUser && (
           <WelcomeModal
@@ -736,6 +744,20 @@ export default function App() {
                 localStorage.setItem(`prospectos_welcomed_${currentUser.id}`, 'true');
               }
               setShowWelcomeModal(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* RETURNING USER WELCOME BACK MODAL */}
+      <AnimatePresence>
+        {showWelcomeBackModal && currentUser && (
+          <WelcomeBackModal
+            userName={currentUser.name}
+            onClose={() => setShowWelcomeBackModal(false)}
+            onNavigateToView={(view) => {
+              setCurrentView(view as ViewName);
+              setShowWelcomeBackModal(false);
             }}
           />
         )}

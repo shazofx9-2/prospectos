@@ -17,13 +17,14 @@ import {
   updateProfile,
   sendPasswordResetEmail,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  getAdditionalUserInfo
 } from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
 import { api, setToken } from '../lib/api.js';
 
 interface AuthPageProps {
-  onAuthSuccess: (user: any) => void;
+  onAuthSuccess: (user: any, isNewUser?: boolean) => void;
   initialIsLogin?: boolean;
   onBackToLanding?: () => void;
 }
@@ -94,7 +95,7 @@ export default function AuthPage({ onAuthSuccess, initialIsLogin = true, onBackT
         };
 
         setToken(`fb_${user.uid}`);
-        onAuthSuccess(authUser);
+        onAuthSuccess(authUser, false);
       } else {
         // Create user
         const cleanName = name.trim();
@@ -112,7 +113,7 @@ export default function AuthPage({ onAuthSuccess, initialIsLogin = true, onBackT
         };
 
         setToken(`fb_${user.uid}`);
-        onAuthSuccess(authUser);
+        onAuthSuccess(authUser, true);
       }
     } catch (err: any) {
       console.error('Auth error:', err);
@@ -169,7 +170,8 @@ export default function AuthPage({ onAuthSuccess, initialIsLogin = true, onBackT
         }
       }
 
-      onAuthSuccess(authUser);
+      const isNew = getAdditionalUserInfo(userCredential)?.isNewUser ?? false;
+      onAuthSuccess(authUser, isNew);
     } catch (err: any) {
       console.error('Google auth error:', err);
       if (err.code === 'auth/unauthorized-domain') {
@@ -199,7 +201,7 @@ export default function AuthPage({ onAuthSuccess, initialIsLogin = true, onBackT
     };
 
     setToken(`fb_${guestId}`);
-    onAuthSuccess(guestUser);
+    onAuthSuccess(guestUser, false);
   };
 
   return (
@@ -490,7 +492,7 @@ export default function AuthPage({ onAuthSuccess, initialIsLogin = true, onBackT
                   className="w-full mt-3 py-2.5 px-4 rounded-lg bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-200 hover:text-white border border-white/10 hover:border-white/20 font-medium text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-sm group"
                   id="try-as-guest-btn"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-zinc-400 group-hover:text-white transition-colors" />
+                  <UserIcon className="w-3.5 h-3.5 text-zinc-400 group-hover:text-white transition-colors" />
                   <span>Try as Guest (Instant Demo Access)</span>
                 </button>
 

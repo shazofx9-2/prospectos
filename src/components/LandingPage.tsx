@@ -81,73 +81,57 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
     {
       icon: RefreshCw,
       title: 'Auto-Syncing Tasks & Calendar',
-      description: 'Automatically sync deal follow-ups, client meetings, and task deadlines directly with your Google Calendar in real-time.',
+      description: 'Synchronize deal follow-ups, client discovery calls, and task deadlines directly with your Google Calendar in real time.',
       badge: 'Google Calendar Sync',
-      badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      glow: 'from-emerald-500/10 to-transparent'
     },
     {
       icon: Mail,
       title: 'Direct Follow-Up Emails',
-      description: 'Dispatch personalized follow-up emails via Gmail using custom smart templates and client variable tags with 1 click.',
+      description: 'Dispatch personalized follow-up sequences via Gmail using custom smart templates and dynamic prospect tags with 1 click.',
       badge: 'Gmail Integration',
-      badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      glow: 'from-blue-500/10 to-transparent'
     },
     {
       icon: TrendingUp,
-      title: 'Drag-and-Drop Pipelines',
-      description: 'Easily move leads through clear sales stages so you always know which contracts are ready to close.',
+      title: 'Visual Deal Pipelines',
+      description: 'Track leads across customizable stages from initial contact to proposal and signed contracts with full revenue forecasting.',
       badge: 'Sales Pipeline',
-      badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-      glow: 'from-purple-500/10 to-transparent'
     },
     {
       icon: Users,
-      title: 'Simple Client Directory',
-      description: 'Keep all client details, contact info, meeting notes, and deal values neatly organized in one clean view.',
-      badge: 'Client Hub',
-      badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-      glow: 'from-amber-500/10 to-transparent'
+      title: 'Unified Client Directory',
+      description: 'Manage active retainer contracts, client communications, project deliverables, and SLA renewals in one command hub.',
+      badge: 'Client CRM',
     },
     {
       icon: CheckSquare,
       title: 'Automated Task Reminders',
-      description: 'Set follow-up reminders and task checklists so no client email or meeting gets missed.',
-      badge: 'Productivity',
-      badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-      glow: 'from-purple-500/10 to-transparent'
+      description: 'Set smart follow-up triggers and operational checklists so zero client commitments or outreach opportunities slip by.',
+      badge: 'Workflow & Tasks',
     },
     {
       icon: BarChart3,
-      title: 'Clear Revenue Reports',
-      description: 'Track your monthly revenue, deal win rates, and overall business growth with clean visual charts.',
-      badge: 'Analytics',
-      badgeColor: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-      glow: 'from-rose-500/10 to-transparent'
+      title: 'Revenue & Growth Intelligence',
+      description: 'Monitor monthly recurring revenue (MRR), deal win rates, and contract close velocity with clean, audit-ready reports.',
+      badge: 'Sales Intelligence',
     },
     {
       icon: Calendar,
-      title: 'Personalized Sales Schedule',
-      description: 'Plan client calls, follow-ups, contract renewals, and key deadlines with an interactive calendar.',
-      badge: 'Calendar',
-      badgeColor: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-      glow: 'from-indigo-500/10 to-transparent'
+      title: 'Interactive Sales Schedule',
+      description: 'Orchestrate client calls, onboarding deadlines, follow-up dates, and recurring contract renewals on an executive timeline.',
+      badge: 'Timeline Calendar',
     },
     {
       icon: Search,
-      title: 'Instant Workspace Search',
-      description: 'Quickly find any prospect, active client, task item, or meeting note across your entire workspace.',
-      badge: 'Quick Search',
-      badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-      glow: 'from-cyan-500/10 to-transparent'
+      title: 'Instant Command-K Search',
+      description: 'Query any prospect lead, active retainer client, task item, or meeting briefing note instantly with Ctrl+K keyboard shortcut.',
+      badge: 'Instant Search',
     }
   ];
 
   const faqs = [
     {
       question: 'What is ProspectOS and how does it help my business?',
-      answer: 'ProspectOS is a simple sales workspace that helps you manage potential clients, organize daily tasks, auto-sync tasks with Google Calendar, send follow-up emails via Gmail, track active deals, and view your revenue progress — all in one easy-to-use app.'
+      answer: 'ProspectOS is an executive sales workspace built for agencies, consultants, and B2B growth teams. It unifies prospective lead pipelines, active client retainers, Google Calendar synchronization, Gmail outreach, and revenue tracking into one secure application.'
     },
     {
       question: 'How do auto-syncing tasks and follow-up emails work?',
@@ -155,46 +139,52 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
     },
     {
       question: 'Can I manage both potential leads and existing clients?',
-      answer: 'Yes! You can track potential leads in your Prospects pipeline, and once a deal is won, easily manage active client accounts and notes in the Clients section.'
+      answer: 'Yes! You can track potential leads in your Prospects pipeline, and once a deal is won, easily convert it with 1 click to active client accounts, retainer agreements, and delivery tasks in the Clients CRM.'
     },
     {
       question: 'Can I customize email templates for different deal stages?',
       answer: 'Yes! You can save custom follow-up templates (e.g. Initial Outreach, Proposal Follow-Up, Meeting Recap) with dynamic variables like {contactName} and {businessName} for instant 1-click dispatch.'
     },
     {
-      question: 'Is ProspectOS easy to use for beginners?',
-      answer: 'Absolutely! ProspectOS features a clean, intuitive layout designed for everyone. You can search your workspace anytime using Ctrl+K and navigate smoothly between your deals, clients, tasks, and reports.'
+      question: 'Is ProspectOS easy to use for teams?',
+      answer: 'Absolutely. ProspectOS features a clean, responsive layout designed for rapid daily operations. You can search your workspace anytime using Ctrl+K and navigate smoothly between your deals, clients, tasks, and reports.'
     },
     {
       question: 'How do I get started?',
-      answer: 'Click "Get Started Free" to create your account using your email and password, or explore the live interactive workspace preview right on this page.'
+      answer: 'Click "Get Started Free" to create your account or explore the live interactive demo workspace right on this page.'
     }
   ];
 
   const testimonials = [
     {
-      quote: 'ProspectOS transformed our agency pipeline. We closed 42% more deals in our first month because no lead ever fell through the cracks again.',
+      quote: 'ProspectOS completely transformed our agency pipeline. We closed 42% more deals in our first 30 days because no qualified lead ever fell through the cracks again.',
       author: 'Marcus Vance',
       role: 'Founder & CEO',
-      company: 'Digital Marketing Agency',
+      company: 'Apex Digital Agency',
       rating: 5,
-      metric: '+42% Deal Closure'
+      metric: '+42% Closed Deals',
+      timeframe: 'First 30 days',
+      initials: 'MV'
     },
     {
-      quote: 'ProspectOS gave us the exact framework we needed to scale our sales operations. By unifying lead qualification, active client retainers, and follow-ups in one workspace, we scaled from 12 to 65+ active clients without adding administrative overhead.',
+      quote: 'ProspectOS gave us the exact framework we needed to scale our sales operations. Unifying prospect outreach, retainer billing, and Google Calendar follow-ups helped us scale from 12 to 65+ active clients without adding administrative overhead.',
       author: 'Elena Rostova',
       role: 'Head of Sales Operations',
-      company: 'B2B SaaS & Tech Consulting',
+      company: 'Vanguard Consulting',
       rating: 5,
-      metric: '5x Scale in 6 Months'
+      metric: '5x Client Retainers',
+      timeframe: '6-Month Scale',
+      initials: 'ER'
     },
     {
-      quote: 'Before ProspectOS, managing our client pipeline across separate spreadsheets was chaotic. Now our team has complete visibility over every deal stage and task, allowing us to double our monthly recurring revenue while reducing lead response time.',
+      quote: 'Before ProspectOS, managing our client pipeline across separate spreadsheets was chaotic. Now our team has complete visibility over every deal stage and task, allowing us to double our monthly recurring revenue with zero friction.',
       author: 'David Chen',
       role: 'Managing Director',
-      company: 'Corporate Advisory & Growth Agency',
+      company: 'Starlight Ventures',
       rating: 5,
-      metric: '2x MRR Growth'
+      metric: '2.4x MRR Growth',
+      timeframe: '90-Day Result',
+      initials: 'DC'
     }
   ];
 
@@ -427,15 +417,15 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                   </span>
                   <span className="text-zinc-500 font-mono text-[10px]">$115,500</span>
                 </div>
-                <div className="p-3 rounded-lg bg-white/4 border border-emerald-500/30 bg-emerald-500/5 transition-all cursor-pointer">
+                <div className="p-3 rounded-lg bg-white/5 border border-white/25 hover:border-white/50 transition-all cursor-pointer shadow-[0_0_12px_rgba(255,255,255,0.04)]">
                   <div className="flex justify-between text-xs font-medium text-white">
                     <span>Horizon Healthcare</span>
-                    <span className="text-emerald-400 font-mono">$50,000</span>
+                    <span className="text-white font-mono font-semibold">$50,000</span>
                   </div>
                   <p className="text-[11px] text-zinc-400 mt-1">Onboarded as Active Client</p>
-                  <div className="mt-2 flex items-center justify-between text-[10px] text-emerald-400">
+                  <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-300">
                     <span>Signed Contract Verified</span>
-                    <span>✓ Synced</span>
+                    <span className="text-white font-medium">✓ Synced</span>
                   </div>
                 </div>
               </div>
@@ -459,17 +449,6 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map((feat, idx) => {
             const Icon = feat.icon;
-            // Chromatic background tints matching Origin Financial feature category cards
-            const cardBgClasses = [
-              'bg-[#1a1b24] border-white/10 hover:border-[#847dff]/40',
-              'bg-[#111d24] border-white/10 hover:border-[#00b3dd]/40',
-              'bg-[#1c1824] border-white/10 hover:border-[#dd90d8]/40',
-              'bg-[#151a24] border-white/10 hover:border-[#90b8f0]/40',
-              'bg-[#2e2e2e]/80 border-white/10 hover:border-white/30',
-              'bg-[#1a1b24] border-white/10 hover:border-[#847dff]/40',
-              'bg-[#111d24] border-white/10 hover:border-[#00b3dd]/40',
-              'bg-[#1c1824] border-white/10 hover:border-[#dd90d8]/40',
-            ][idx % 8];
 
             return (
               <motion.div
@@ -477,20 +456,36 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: idx * 0.06 }}
-                className={`p-7 sm:p-8 rounded-[28px] border transition-all relative group flex flex-col justify-between ${cardBgClasses}`}
+                transition={{ duration: 0.45, delay: idx * 0.05 }}
+                whileHover={{ y: -4 }}
+                className="p-7 sm:p-8 rounded-2xl bg-gradient-to-b from-[#18191d] to-[#121316] border border-white/15 hover:border-white/60 hover:shadow-[0_0_25px_rgba(255,255,255,0.08),0_20px_40px_rgba(0,0,0,0.6)] transition-all duration-300 relative group flex flex-col justify-between overflow-hidden"
               >
+                {/* Top specular subtle white rim light */}
+                <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent group-hover:via-white/70 transition-all duration-300" />
+
                 <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center text-white shrink-0">
-                      <Icon className="w-5 h-5 text-white" />
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="w-11 h-11 rounded-xl bg-white/[0.05] border border-white/15 flex items-center justify-center text-zinc-300 group-hover:bg-white group-hover:text-black group-hover:border-white group-hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-all duration-300 shrink-0">
+                      <Icon className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
                     </div>
-                    <span className="text-[10px] font-mono px-3 py-1 rounded-full bg-white/10 text-zinc-300 font-medium uppercase tracking-widest border border-white/10">
+                    <span className="text-[10px] font-mono uppercase tracking-[0.15em] px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/15 text-zinc-300 group-hover:border-white/40 group-hover:text-white transition-all">
                       {feat.badge}
                     </span>
                   </div>
-                  <h3 className="text-xl font-serif font-light text-white mb-2 leading-snug">{feat.title}</h3>
-                  <p className="text-xs sm:text-sm text-zinc-400 font-light leading-relaxed">{feat.description}</p>
+                  <h3 className="text-lg font-semibold text-white mb-2 leading-snug font-sans tracking-tight group-hover:text-white transition-colors">
+                    {feat.title}
+                  </h3>
+                  <p className="text-xs sm:text-[13px] text-zinc-400 font-normal leading-relaxed group-hover:text-zinc-300 transition-colors">
+                    {feat.description}
+                  </p>
+                </div>
+
+                {/* Subtle interactive footer detail */}
+                <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between text-[11px] text-zinc-500 group-hover:text-zinc-300 transition-colors">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-400 group-hover:text-white flex items-center gap-1.5 transition-colors">
+                    <span>Built-in standard</span>
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-white" />
                 </div>
               </motion.div>
             );
@@ -543,14 +538,14 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-white/8">
                   <div>
                     <span className="font-semibold text-white text-xs sm:text-sm flex items-center gap-2">
-                      <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin-slow" />
+                      <RefreshCw className="w-4 h-4 text-white animate-spin-slow" />
                       Google Calendar Auto-Sync Tasks Engine
                     </span>
                     <p className="text-[11px] text-zinc-400 mt-0.5">Tasks automatically schedule onto your linked Google Calendar</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Auto-Sync Active
+                    <span className="px-2.5 py-1 rounded-full bg-white/10 text-white border border-white/20 text-[10px] font-mono flex items-center gap-1.5 shadow-sm">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-white" /> Auto-Sync Active
                     </span>
                   </div>
                 </div>
@@ -561,20 +556,20 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
                     { task: 'Q3 Growth & Onboarding Call with Quantum Analytics', priority: 'Medium', due: 'Today, 4:30 PM', syncStatus: 'Synced with Google Calendar' },
                     { task: 'Follow up on deposit invoice #1084 with Vanguard Media', priority: 'High', due: 'Tomorrow, 9:00 AM', syncStatus: 'Synced with Google Calendar' }
                   ].map((t, idx) => (
-                    <div key={idx} className="p-3.5 rounded-xl bg-white/3 border border-white/8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/20 transition-all">
+                    <div key={idx} className="p-3.5 rounded-xl bg-white/3 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/30 transition-all">
                       <div className="flex items-center gap-3">
-                        <div className="w-5 h-5 rounded-md bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                        <div className="w-5 h-5 rounded-md bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
                           <Check className="w-3 h-3" />
                         </div>
                         <div>
                           <span className="text-xs font-medium text-zinc-200">{t.task}</span>
-                          <p className="text-[10px] text-emerald-400 font-mono mt-0.5 flex items-center gap-1">
-                            <Calendar className="w-3 h-3" /> {t.syncStatus}
+                          <p className="text-[10px] text-zinc-400 font-mono mt-0.5 flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-zinc-400" /> {t.syncStatus}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 text-[10px]">
-                        <span className="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-medium">{t.priority}</span>
+                        <span className="px-2 py-0.5 rounded bg-white/10 text-zinc-200 border border-white/15 font-medium">{t.priority}</span>
                         <span className="text-zinc-400 font-mono">{t.due}</span>
                       </div>
                     </div>
@@ -638,23 +633,26 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                 <div className="flex justify-between items-center text-xs text-zinc-400 pb-2 border-b border-white/8">
                   <span className="font-semibold text-white">Visual Lead Qualification Stages</span>
-                  <span className="text-emerald-400 font-mono">Total Value: $310,000</span>
+                  <span className="text-white font-mono font-medium">Total Value: $310,000</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-xl bg-white/3 border border-white/8">
-                    <span className="text-xs font-bold text-blue-400">1. Discovery Stage</span>
-                    <p className="text-xs text-zinc-300 font-medium mt-2">Apex Solutions ($28k)</p>
+                  <div className="p-4 rounded-xl bg-white/3 border border-white/10 hover:border-white/30 transition-all">
+                    <span className="text-xs font-bold text-zinc-300">1. Discovery Stage</span>
+                    <p className="text-xs text-zinc-200 font-medium mt-2">Apex Solutions ($28k)</p>
                     <p className="text-[11px] text-zinc-500 mt-1">First demo call booked for Thursday</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-white/3 border border-amber-500/20">
-                    <span className="text-xs font-bold text-amber-400">2. Proposal Sent</span>
-                    <p className="text-xs text-zinc-300 font-medium mt-2">Global Zenith Inc ($65k)</p>
+                  <div className="p-4 rounded-xl bg-white/3 border border-white/15 hover:border-white/30 transition-all">
+                    <span className="text-xs font-bold text-zinc-200">2. Proposal Sent</span>
+                    <p className="text-xs text-zinc-200 font-medium mt-2">Global Zenith Inc ($65k)</p>
                     <p className="text-[11px] text-zinc-500 mt-1">Reviewing pricing terms with VP</p>
                   </div>
-                  <div className="p-4 rounded-xl bg-white/3 border border-emerald-500/20">
-                    <span className="text-xs font-bold text-emerald-400">3. Closed Won</span>
-                    <p className="text-xs text-zinc-300 font-medium mt-2">Hyperion Labs ($120k)</p>
-                    <p className="text-[11px] text-zinc-500 mt-1">Contract signed & onboarded</p>
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/30 hover:border-white/60 transition-all shadow-[0_0_15px_rgba(255,255,255,0.04)]">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                      3. Closed Won
+                    </span>
+                    <p className="text-xs text-white font-semibold mt-2">Hyperion Labs ($120k)</p>
+                    <p className="text-[11px] text-zinc-400 mt-1">Contract signed &amp; onboarded</p>
                   </div>
                 </div>
               </motion.div>
@@ -732,28 +730,42 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: idx * 0.1 }}
-              className="p-8 rounded-[28px] bg-[#2e2e2e]/60 border border-white/10 flex flex-col justify-between relative"
+              transition={{ duration: 0.5, delay: idx * 0.08 }}
+              whileHover={{ y: -4 }}
+              className="p-7 sm:p-8 rounded-2xl bg-gradient-to-b from-[#18191d] to-[#121316] border border-white/15 hover:border-white/60 hover:shadow-[0_0_25px_rgba(255,255,255,0.08),0_20px_40px_rgba(0,0,0,0.6)] flex flex-col justify-between relative overflow-hidden transition-all duration-300 group"
             >
+              {/* Top specular subtle white rim light */}
+              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent group-hover:via-white/70 transition-all duration-300" />
+
               <div>
-                {/* Rating Stars */}
-                <div className="flex items-center gap-1 mb-5 text-amber-400">
-                  {[...Array(t.rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  ))}
+                <div className="flex items-center justify-between mb-5">
+                  <div className="w-10 h-10 rounded-full bg-white/[0.08] border border-white/20 flex items-center justify-center font-bold text-xs text-white tracking-wider font-mono shadow-sm group-hover:border-white/50 group-hover:bg-white/15 transition-all">
+                    {t.initials}
+                  </div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-300 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/15 group-hover:border-white/35 transition-colors">
+                    <ShieldCheck className="w-3.5 h-3.5 text-zinc-200" />
+                    Verified Client
+                  </span>
                 </div>
 
-                <p className="text-base text-zinc-200 leading-relaxed font-serif italic font-light mb-8">"{t.quote}"</p>
+                <p className="text-sm sm:text-[14px] text-zinc-200 leading-relaxed font-normal mb-8">
+                  "{t.quote}"
+                </p>
               </div>
 
-              <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-bold text-white font-sans">{t.author}</h4>
-                  <p className="text-[11px] text-zinc-400">{t.role} • {t.company}</p>
+              <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-white font-sans truncate">{t.author}</h4>
+                  <p className="text-[11px] text-zinc-400 truncate mt-0.5">{t.role} · {t.company}</p>
                 </div>
-                <span className="px-3 py-1 rounded-full text-[10px] font-mono font-medium bg-white/10 text-emerald-400 border border-white/10">
-                  {t.metric}
-                </span>
+                <div className="text-right shrink-0">
+                  <span className="text-xs font-bold text-white tabular-nums block font-mono px-2.5 py-1 rounded-lg bg-white/10 border border-white/20">
+                    {t.metric}
+                  </span>
+                  <span className="text-[10px] text-zinc-400 block mt-1 font-mono">
+                    {t.timeframe}
+                  </span>
+                </div>
               </div>
             </motion.div>
           ))}
@@ -1006,7 +1018,7 @@ export default function LandingPage({ onOpenAuth }: LandingPageProps) {
               {/* Modal Header */}
               <div className="flex items-center justify-between p-6 border-b border-white/10 shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white">
                     <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
