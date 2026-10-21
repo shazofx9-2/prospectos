@@ -76,7 +76,8 @@ router.post('/sync-google-calendar', async (req: AuthenticatedRequest, res: Resp
     const userId = req.user!.id;
     const cleanId = userId.replace(/^fb_/, '');
 
-    const token = getGoogleAccessToken(userId);
+    const headerToken = req.headers['x-google-access-token'] as string | undefined;
+    const token = headerToken || getGoogleAccessToken(userId);
     if (!token) {
       return res.status(400).json({ error: 'No Google account connected. Please sign in or connect your Google account in Settings.' });
     }
@@ -95,19 +96,19 @@ router.post('/sync-google-calendar', async (req: AuthenticatedRequest, res: Resp
 
     for (const task of tasks) {
       if (!task.googleEventId) {
-        const eventId = await createGoogleCalendarEvent(userId, task);
+        const eventId = await createGoogleCalendarEvent(userId, task, token);
         if (eventId) {
           DB.update('tasks', task.id, { googleEventId: eventId, syncedToGoogle: true });
           syncedCount++;
         }
       } else {
-        const updated = await updateGoogleCalendarEvent(userId, task);
+        const updated = await updateGoogleCalendarEvent(userId, task, token);
         if (updated) {
           DB.update('tasks', task.id, { syncedToGoogle: true });
           syncedCount++;
         } else {
           // Re-create event if previous event ID is invalid/stale
-          const eventId = await createGoogleCalendarEvent(userId, task);
+          const eventId = await createGoogleCalendarEvent(userId, task, token);
           if (eventId) {
             DB.update('tasks', task.id, { googleEventId: eventId, syncedToGoogle: true });
             syncedCount++;

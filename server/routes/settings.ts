@@ -37,10 +37,19 @@ router.put('/profile', async (req: AuthenticatedRequest, res: Response) => {
       updateFields.currency = currency.trim().toUpperCase();
     }
 
-    const success = DB.update('users', userId, updateFields);
+    let success = DB.update('users', userId, updateFields);
 
     if (!success) {
-      return res.status(404).json({ error: 'User profile not found' });
+      DB.insert('users', {
+        id: userId,
+        email: updateFields.email || req.user?.email || `${userId}@user.com`,
+        name: updateFields.name,
+        theme: updateFields.theme || 'dark',
+        currency: updateFields.currency || 'USD',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      success = true;
     }
 
     const updatedUser = DB.query('users').find((u) => u.id === userId);

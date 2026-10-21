@@ -30,6 +30,7 @@ import { api } from '../lib/api.js';
 import { AppleToast } from './AppleToast.jsx';
 import { SenderAccount, EmailTemplate } from '../types.js';
 import { SUPPORTED_CURRENCIES, getUserCurrency, getUserTheme } from '../lib/currency.js';
+import { setCachedGoogleToken } from '../lib/googleCalendar.js';
 
 interface SettingsViewProps {
   currentUser: { id: string; email: string; name: string; theme?: 'dark' | 'light'; currency?: string } | null;
@@ -132,12 +133,20 @@ export default function SettingsView({ currentUser, onUserUpdate }: SettingsView
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminName.trim()) {
+    const cleanName = adminName.trim();
+    if (!cleanName) {
       triggerToast('Name is required');
       return;
     }
     try {
-      await api.settings.updateProfile({ name: adminName.trim(), email: adminEmail.trim() });
+      try {
+        const raw = localStorage.getItem('prospectos_user');
+        const existing = raw ? JSON.parse(raw) : {};
+        const updated = { ...existing, name: cleanName, email: adminEmail.trim() };
+        localStorage.setItem('prospectos_user', JSON.stringify(updated));
+      } catch {}
+
+      await api.settings.updateProfile({ name: cleanName, email: adminEmail.trim() });
       triggerToast('Name updated successfully!');
       if (onUserUpdate) onUserUpdate();
     } catch (err: any) {
@@ -187,8 +196,10 @@ export default function SettingsView({ currentUser, onUserUpdate }: SettingsView
 
     try {
       const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/calendar.events');
       provider.addScope('https://www.googleapis.com/auth/gmail.send');
       provider.addScope('https://www.googleapis.com/auth/userinfo.email');
+      provider.setCustomParameters({ prompt: 'consent select_account' });
 
       let token = 'oauth_token_' + Date.now();
       let emailToUse = connectEmail.trim() || currentUser?.email || 'user@gmail.com';
@@ -198,6 +209,7 @@ export default function SettingsView({ currentUser, onUserUpdate }: SettingsView
         const credential = GoogleAuthProvider.credentialFromResult(result);
         if (credential?.accessToken) {
           token = credential.accessToken;
+          setCachedGoogleToken(credential.accessToken);
         }
         if (result.user.email) {
           emailToUse = result.user.email;

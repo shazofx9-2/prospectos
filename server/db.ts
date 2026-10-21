@@ -7,7 +7,7 @@ const DB_FILE = isVercel ? path.join('/tmp', 'db.json') : path.join(process.cwd(
 export interface User {
   id: string;
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
   name: string;
   theme?: 'dark' | 'light';
   currency?: string;

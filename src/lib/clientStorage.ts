@@ -693,13 +693,45 @@ export function handleClientFallback<T>(url: string, method: string, options: an
 
   // Auth
   if (cleanUrl.includes('/api/auth/me')) {
-    return {
-      user: {
-        id: 'usr_demo123',
-        email: 'demo@prospectos.com',
-        name: 'Demo Principal',
+    try {
+      const raw = localStorage.getItem('prospectos_user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u && u.name && u.name !== 'Workspace Principal' && u.name !== 'Demo Principal') {
+          return { user: u } as any;
+        }
       }
-    } as any;
+    } catch {}
+
+    const guestId = localStorage.getItem('prospectos_guest_id') || uid;
+    const fallbackUser = {
+      id: guestId,
+      email: `${guestId}@user.com`,
+      name: 'User',
+      theme: localStorage.getItem('prospectos_theme') || 'dark',
+      currency: localStorage.getItem('prospectos_currency') || 'USD'
+    };
+    return { user: fallbackUser } as any;
+  }
+
+  // Settings profile
+  if (cleanUrl.includes('/api/settings/profile')) {
+    try {
+      const body = JSON.parse(options?.body || '{}');
+      const raw = localStorage.getItem('prospectos_user');
+      const existing = raw ? JSON.parse(raw) : {};
+      const updated = {
+        ...existing,
+        id: existing.id || uid,
+        name: body.name || existing.name || 'User',
+        email: body.email || existing.email || `${uid}@user.com`,
+        theme: body.theme || existing.theme || 'dark',
+        currency: body.currency || existing.currency || 'USD'
+      };
+      localStorage.setItem('prospectos_user', JSON.stringify(updated));
+      return { success: true, message: 'Profile updated successfully', user: updated } as any;
+    } catch {}
+    return { success: true, message: 'Profile updated' } as any;
   }
 
   // Analytics

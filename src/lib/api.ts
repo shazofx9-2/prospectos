@@ -1,6 +1,7 @@
 import { handleClientFallback, syncToClientStorage, getCurrentUserId, setUserStoredData, getUserStoredData, computeAnalyticsFallback } from './clientStorage.js';
 import { auth } from './firebase.js';
 import { firestoreService } from './firestoreService.js';
+import { syncTasksToGoogleCalendar } from './googleCalendar.js';
 
 const BASE_URL = ''; // Relative paths proxy perfectly through Vite middleware
 
@@ -32,6 +33,19 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
+
+  try {
+    const rawUser = localStorage.getItem('prospectos_user');
+    if (rawUser) {
+      const u = JSON.parse(rawUser);
+      if (u?.name && u.name !== 'Workspace Principal' && u.name !== 'Demo Principal') {
+        headers.set('x-user-name', encodeURIComponent(u.name));
+      }
+      if (u?.email) {
+        headers.set('x-user-email', encodeURIComponent(u.email));
+      }
+    }
+  } catch {}
 
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
@@ -521,10 +535,21 @@ export const api = {
       });
     },
 
-    syncGoogleCalendar: () =>
-      request<{ success: boolean; syncedCount: number; totalCount: number; message: string }>('/api/tasks/sync-google-calendar', {
-        method: 'POST',
-      }),
+    syncGoogleCalendar: async () => {
+      try {
+        const result = await syncTasksToGoogleCalendar();
+        return result;
+      } catch (err: any) {
+        // Fallback: try request to server route if available
+        try {
+          const res = await request<{ success: boolean; syncedCount: number; totalCount: number; message: string }>('/api/tasks/sync-google-calendar', {
+            method: 'POST',
+          });
+          if (res && res.message) return res;
+        } catch {}
+        throw err;
+      }
+    },
   },
 
   reminders: {
@@ -632,11 +657,30 @@ export const api = {
       request<{ success: boolean; message: string }>('/api/settings/reset', {
         method: 'POST',
       }),
-    updateProfile: (data: { name: string; email: string; theme?: string; currency?: string }) =>
-      request<{ success: boolean; message: string; user?: any }>('/api/settings/profile', {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      }),
+    updateProfile: async (data: { name: string; email: string; theme?: string; currency?: string }) => {
+      try {
+        const raw = localStorage.getItem('prospectos_user');
+        const existing = raw ? JSON.parse(raw) : {};
+        const updated = {
+          ...existing,
+          name: data.name,
+          email: data.email,
+          ...(data.theme ? { theme: data.theme } : {}),
+          ...(data.currency ? { currency: data.currency } : {})
+        };
+        localStorage.setItem('prospectos_user', JSON.stringify(updated));
+      } catch {}
+
+      try {
+        const res = await request<{ success: boolean; message: string; user?: any }>('/api/settings/profile', {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        });
+        return res;
+      } catch (err) {
+        return { success: true, message: 'Profile updated successfully' };
+      }
+    },
     updateAppSettings: (data: { theme?: 'dark' | 'light'; currency?: string }) =>
       request<{ success: boolean; message: string; user?: any }>('/api/settings/app-settings', {
         method: 'PUT',

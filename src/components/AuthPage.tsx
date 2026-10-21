@@ -22,6 +22,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
 import { api, setToken } from '../lib/api.js';
+import { setCachedGoogleToken } from '../lib/googleCalendar.js';
 
 interface AuthPageProps {
   onAuthSuccess: (user: any, isNewUser?: boolean) => void;
@@ -149,6 +150,9 @@ export default function AuthPage({ onAuthSuccess, initialIsLogin = true, onBackT
       const user = userCredential.user;
       const credential = GoogleAuthProvider.credentialFromResult(userCredential);
       const accessToken = credential?.accessToken;
+      if (accessToken) {
+        setCachedGoogleToken(accessToken);
+      }
 
       const authUser = {
         id: user.uid,

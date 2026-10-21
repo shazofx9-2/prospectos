@@ -68,8 +68,8 @@ function formatGoogleCalendarDates(dueDateStr: string, dueTime?: string, addTime
   }
 }
 
-export async function createGoogleCalendarEvent(userId: string, task: Task): Promise<string | null> {
-  const token = getGoogleAccessToken(userId);
+export async function createGoogleCalendarEvent(userId: string, task: Task, explicitToken?: string): Promise<string | null> {
+  const token = explicitToken || getGoogleAccessToken(userId);
   if (!token) {
     console.warn('createGoogleCalendarEvent: No Google access token found for user', userId);
     return null;
@@ -109,9 +109,9 @@ export async function createGoogleCalendarEvent(userId: string, task: Task): Pro
   }
 }
 
-export async function updateGoogleCalendarEvent(userId: string, task: Task): Promise<boolean> {
+export async function updateGoogleCalendarEvent(userId: string, task: Task, explicitToken?: string): Promise<boolean> {
   if (!task.googleEventId) return false;
-  const token = getGoogleAccessToken(userId);
+  const token = explicitToken || getGoogleAccessToken(userId);
   if (!token) return false;
 
   try {

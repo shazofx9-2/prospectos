@@ -31,7 +31,7 @@ export function generateToken(user: { id: string; email: string; name: string })
   );
 }
 
-export function verifyToken(token: string) {
+export function verifyToken(token: string, req?: Request) {
   if (!token) return null;
 
   // Handle Firebase tokens (prefixed with fb_)
@@ -39,10 +39,42 @@ export function verifyToken(token: string) {
     const uid = token.replace('fb_', '');
     const users = DB.query('users');
     const existing = users.find((u) => u.id === uid || u.id === token);
+
+    let headerName: string | undefined;
+    if (req?.headers?.['x-user-name']) {
+      try {
+        headerName = decodeURIComponent(String(req.headers['x-user-name']));
+      } catch {}
+    }
+    let headerEmail: string | undefined;
+    if (req?.headers?.['x-user-email']) {
+      try {
+        headerEmail = decodeURIComponent(String(req.headers['x-user-email']));
+      } catch {}
+    }
+
+    const email = existing?.email || headerEmail || `${uid}@user.com`;
+    let resolvedName = headerName || existing?.name;
+    if (!resolvedName || resolvedName === 'Workspace Principal' || resolvedName === 'Demo Principal') {
+      resolvedName = email ? email.split('@')[0] : 'User';
+    }
+
+    if (!existing) {
+      DB.insert('users', {
+        id: uid,
+        email,
+        name: resolvedName,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    } else if (headerName && headerName !== 'Workspace Principal' && headerName !== 'Demo Principal' && existing.name !== headerName) {
+      DB.update('users', existing.id, { name: headerName, updatedAt: new Date().toISOString() });
+    }
+
     return {
       id: uid,
-      email: existing?.email || `${uid}@user.com`,
-      name: existing?.name || 'Workspace Principal',
+      email,
+      name: resolvedName,
     };
   }
 
@@ -60,7 +92,7 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   }
 
   const token = authHeader.split(' ')[1];
-  const decoded = verifyToken(token);
+  const decoded = verifyToken(token, req);
 
   if (!decoded) {
     return res.status(401).json({ error: 'Token is expired or invalid' });

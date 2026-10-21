@@ -50,7 +50,14 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<any>(() => {
     try {
       const raw = localStorage.getItem('prospectos_user');
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.name === 'Workspace Principal' || parsed?.name === 'Demo Principal') {
+          parsed.name = auth.currentUser?.displayName || (parsed.email ? parsed.email.split('@')[0] : 'User');
+          localStorage.setItem('prospectos_user', JSON.stringify(parsed));
+        }
+        return parsed;
+      }
       const savedToken = getToken();
       if (savedToken && savedToken.startsWith('fb_guest_')) {
         return {
@@ -222,19 +229,46 @@ export default function App() {
     try {
       const res = await api.auth.me();
       if (res?.user) {
-        setCurrentUser(res.user);
+        setCurrentUser((prev: any) => {
+          const backendName = res.user.name;
+          const isGeneric = !backendName || backendName === 'Workspace Principal' || backendName === 'Demo Principal';
+          const resolvedName = !isGeneric
+            ? backendName
+            : (prev?.name && prev.name !== 'Workspace Principal' && prev.name !== 'Demo Principal'
+                ? prev.name
+                : (auth.currentUser?.displayName || (auth.currentUser?.email ? auth.currentUser.email.split('@')[0] : 'User')));
+
+          const updated = {
+            ...prev,
+            ...res.user,
+            name: resolvedName
+          };
+          try {
+            localStorage.setItem('prospectos_user', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
         const u = res.user as any;
         if (u.theme) localStorage.setItem('prospectos_theme', u.theme);
         if (u.currency) localStorage.setItem('prospectos_currency', u.currency);
       }
     } catch (e) {
       if (auth.currentUser) {
-        setCurrentUser((prev: any) => ({
-          ...prev,
-          id: auth.currentUser!.uid,
-          email: auth.currentUser!.email || '',
-          name: auth.currentUser!.displayName || (auth.currentUser!.email ? auth.currentUser!.email.split('@')[0] : 'User')
-        }));
+        setCurrentUser((prev: any) => {
+          const resolvedName = prev?.name && prev.name !== 'Workspace Principal' && prev.name !== 'Demo Principal'
+            ? prev.name
+            : (auth.currentUser!.displayName || (auth.currentUser!.email ? auth.currentUser!.email.split('@')[0] : 'User'));
+          const updated = {
+            ...prev,
+            id: auth.currentUser!.uid,
+            email: auth.currentUser!.email || '',
+            name: resolvedName
+          };
+          try {
+            localStorage.setItem('prospectos_user', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
       }
     }
   };
@@ -412,7 +446,9 @@ export default function App() {
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <p className="text-xs font-bold text-white truncate">
-                  {currentUser?.name || 'Workspace Principal'}
+                  {currentUser?.name && currentUser.name !== 'Workspace Principal' && currentUser.name !== 'Demo Principal'
+                    ? currentUser.name
+                    : (auth.currentUser?.displayName || (auth.currentUser?.email ? auth.currentUser.email.split('@')[0] : 'User'))}
                 </p>
                 {(currentUser?.id?.startsWith('guest_') || currentUser?.email === 'guest@prospectos.com') && (
                   <span className="px-1.5 py-0.2 bg-zinc-800 text-zinc-300 border border-white/10 text-[9px] font-semibold rounded shrink-0">
@@ -516,7 +552,9 @@ export default function App() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-white truncate">
-                      {currentUser?.name || 'Demo Principal'}
+                      {currentUser?.name && currentUser.name !== 'Workspace Principal' && currentUser.name !== 'Demo Principal'
+                        ? currentUser.name
+                        : (auth.currentUser?.displayName || (auth.currentUser?.email ? auth.currentUser.email.split('@')[0] : 'User'))}
                     </p>
                   </div>
                 </div>
