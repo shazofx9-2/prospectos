@@ -19,18 +19,28 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Seed demo data on cold start if empty
 seedDemoData().catch(console.error);
 
-app.use('/api/auth', authRouter);
-app.use('/api/prospects', prospectsRouter);
-app.use('/api/clients', clientsRouter);
-app.use('/api/tasks', tasksRouter);
-app.use('/api/notes', notesRouter);
-app.use('/api/reminders', remindersRouter);
-app.use('/api/files', filesRouter);
-app.use('/api/analytics', analyticsRouter);
-app.use('/api/settings', settingsRouter);
-app.use('/api/follow-ups', followupsRouter);
+const routes = [
+  ['/auth', authRouter],
+  ['/prospects', prospectsRouter],
+  ['/clients', clientsRouter],
+  ['/tasks', tasksRouter],
+  ['/notes', notesRouter],
+  ['/reminders', remindersRouter],
+  ['/files', filesRouter],
+  ['/analytics', analyticsRouter],
+  ['/settings', settingsRouter],
+  ['/follow-ups', followupsRouter]
+] as const;
+
+routes.forEach(([path, router]) => {
+  app.use(`/api${path}`, router);
+  app.use(path, router);
+});
 
 app.get('/api/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+app.get('/health', (req, res) => {
   res.json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 

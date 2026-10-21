@@ -46,9 +46,9 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     return Promise.resolve(cache[url] as T);
   }
 
-  // Resilient 1500ms timeout for deployments (e.g. Vercel) where static edge has no /api server
+  // Resilient 800ms timeout for deployments (e.g. Vercel) where static edge has no /api server
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1500);
+  const timeoutId = setTimeout(() => controller.abort(), 800);
 
   try {
     const response = await fetch(url, {
@@ -118,39 +118,36 @@ export const api = {
       const uid = fbUser ? fbUser.uid : getCurrentUserId();
       const local = getUserStoredData<any>('prospects', uid);
 
+      // Instant return if local cache exists (0ms latency for user)
+      if (local && local.length > 0) {
+        if (fbUser) {
+          firestoreService.prospects.list(fbUser.uid).then((remoteList) => {
+            if (remoteList && remoteList.length > 0) {
+              setUserStoredData('prospects', remoteList, uid);
+            } else if (local.length > 0) {
+              Promise.all(local.map((p) => firestoreService.prospects.create(p, fbUser.uid))).catch(() => {});
+            }
+          }).catch(() => {});
+        }
+        return local;
+      }
+
       if (fbUser) {
         try {
-          // Race Firestore with a 1500ms timeout so user UI never stalls
           const fetchPromise = firestoreService.prospects.list(fbUser.uid);
           const timeoutPromise = new Promise<any[]>((_, reject) =>
-            setTimeout(() => reject(new Error('Firestore timeout')), 1500)
+            setTimeout(() => reject(new Error('Firestore timeout')), 600)
           );
           const remoteList = await Promise.race([fetchPromise, timeoutPromise]);
           if (remoteList && remoteList.length > 0) {
             setUserStoredData('prospects', remoteList, uid);
             return remoteList;
           }
-          // If Firestore is empty, sync local cached items to Firestore in background (non-blocking)
-          if (local && local.length > 0) {
-            Promise.all(local.map((p) => firestoreService.prospects.create(p, fbUser.uid))).catch(() => {});
-            return local;
-          }
         } catch (e) {
-          console.warn('Firestore prospects fast fallback to local storage:', e);
-          if (local && local.length > 0) return local;
+          console.warn('Firestore prospects fallback:', e);
         }
       }
 
-      // If local already has data, return it immediately with 0 latency
-      if (local && local.length > 0) {
-        return local;
-      }
-
-      // Fallback to local storage / server
-      try {
-        const res = await request<any[]>('/api/prospects');
-        if (Array.isArray(res) && res.length > 0) return res;
-      } catch {}
       return handleClientFallback<any[]>('/api/prospects', 'GET', {});
     },
 
@@ -326,35 +323,36 @@ export const api = {
       const uid = fbUser ? fbUser.uid : getCurrentUserId();
       const local = getUserStoredData<any>('clients', uid);
 
+      // Instant return if local cache exists (0ms latency for user)
+      if (local && local.length > 0) {
+        if (fbUser) {
+          firestoreService.clients.list(fbUser.uid).then((remoteList) => {
+            if (remoteList && remoteList.length > 0) {
+              setUserStoredData('clients', remoteList, uid);
+            } else if (local.length > 0) {
+              Promise.all(local.map((c) => firestoreService.clients.create(c, fbUser.uid))).catch(() => {});
+            }
+          }).catch(() => {});
+        }
+        return local;
+      }
+
       if (fbUser) {
         try {
           const fetchPromise = firestoreService.clients.list(fbUser.uid);
           const timeoutPromise = new Promise<any[]>((_, reject) =>
-            setTimeout(() => reject(new Error('Firestore timeout')), 1500)
+            setTimeout(() => reject(new Error('Firestore timeout')), 600)
           );
           const remoteList = await Promise.race([fetchPromise, timeoutPromise]);
           if (remoteList && remoteList.length > 0) {
             setUserStoredData('clients', remoteList, uid);
             return remoteList;
           }
-          if (local && local.length > 0) {
-            Promise.all(local.map((c) => firestoreService.clients.create(c, fbUser.uid))).catch(() => {});
-            return local;
-          }
         } catch (e) {
-          console.warn('Firestore clients fast fallback to local storage:', e);
-          if (local && local.length > 0) return local;
+          console.warn('Firestore clients fallback:', e);
         }
       }
 
-      if (local && local.length > 0) {
-        return local;
-      }
-
-      try {
-        const res = await request<any[]>('/api/clients');
-        if (Array.isArray(res) && res.length > 0) return res;
-      } catch {}
       return handleClientFallback<any[]>('/api/clients', 'GET', {});
     },
 
@@ -448,35 +446,36 @@ export const api = {
       const local = getUserStoredData<any>('tasks', uid);
       const filteredLocal = clientId ? local.filter((t) => t.clientId === clientId) : local;
 
+      // Instant return if local cache exists (0ms latency for user)
+      if (filteredLocal && filteredLocal.length > 0) {
+        if (fbUser) {
+          firestoreService.tasks.list(fbUser.uid, clientId).then((remoteList) => {
+            if (remoteList && remoteList.length > 0) {
+              if (!clientId) setUserStoredData('tasks', remoteList, uid);
+            } else if (filteredLocal.length > 0) {
+              Promise.all(filteredLocal.map((t) => firestoreService.tasks.create(t, fbUser.uid))).catch(() => {});
+            }
+          }).catch(() => {});
+        }
+        return filteredLocal;
+      }
+
       if (fbUser) {
         try {
           const fetchPromise = firestoreService.tasks.list(fbUser.uid, clientId);
           const timeoutPromise = new Promise<any[]>((_, reject) =>
-            setTimeout(() => reject(new Error('Firestore timeout')), 1500)
+            setTimeout(() => reject(new Error('Firestore timeout')), 600)
           );
           const remoteList = await Promise.race([fetchPromise, timeoutPromise]);
           if (remoteList && remoteList.length > 0) {
             if (!clientId) setUserStoredData('tasks', remoteList, uid);
             return remoteList;
           }
-          if (filteredLocal && filteredLocal.length > 0) {
-            Promise.all(filteredLocal.map((t) => firestoreService.tasks.create(t, fbUser.uid))).catch(() => {});
-            return filteredLocal;
-          }
         } catch (e) {
-          console.warn('Firestore tasks fast fallback to local storage:', e);
-          if (filteredLocal && filteredLocal.length > 0) return filteredLocal;
+          console.warn('Firestore tasks fallback:', e);
         }
       }
 
-      if (filteredLocal && filteredLocal.length > 0) {
-        return filteredLocal;
-      }
-
-      try {
-        const res = await request<any[]>(`/api/tasks${clientId ? `?clientId=${clientId}` : ''}`);
-        if (Array.isArray(res) && res.length > 0) return res;
-      } catch {}
       return filteredLocal || [];
     },
 
@@ -613,12 +612,11 @@ export const api = {
 
   analytics: {
     get: async () => {
-      // Return instant computation immediately from local storage cache
+      // Return instant computation immediately from local storage cache (0ms)
       const fallback = computeAnalyticsFallback();
-      try {
-        const res = await request<any>('/api/analytics');
-        if (res && res.metrics) return res;
-      } catch {}
+      request<any>('/api/analytics').then((res) => {
+        if (res && res.metrics) cache['/api/analytics'] = res;
+      }).catch(() => {});
       return fallback;
     },
   },
@@ -658,10 +656,9 @@ export const api = {
   followUps: {
     list: async () => {
       const fallback = handleClientFallback<any>('/api/follow-ups', 'GET', {});
-      try {
-        const res = await request<any>('/api/follow-ups');
-        if (res && (res.overdue || res.today || res.upcoming)) return res;
-      } catch {}
+      request<any>('/api/follow-ups').then((res) => {
+        if (res && (res.overdue || res.today || res.upcoming)) cache['/api/follow-ups'] = res;
+      }).catch(() => {});
       return fallback;
     },
     updateProspect: (id: string, data: { nextFollowUpDate?: string | null; followUpStatus?: string; followUpNote?: string | null }) =>

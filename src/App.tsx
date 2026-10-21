@@ -47,7 +47,21 @@ type ViewName =
 
 export default function App() {
   const [token, setTokenState] = useState<string | null>(getToken());
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const raw = localStorage.getItem('prospectos_user');
+      if (raw) return JSON.parse(raw);
+      const savedToken = getToken();
+      if (savedToken && savedToken.startsWith('fb_guest_')) {
+        return {
+          id: savedToken.replace('fb_', ''),
+          email: 'guest@prospectos.com',
+          name: 'Guest Explorer'
+        };
+      }
+    } catch {}
+    return null;
+  });
   const [currentView, setCurrentView] = useState<ViewName>(() => {
     try {
       const uid = getCurrentUserId();
@@ -94,10 +108,6 @@ export default function App() {
     if (currentUser) {
       try {
         localStorage.setItem('prospectos_user', JSON.stringify(currentUser));
-      } catch {}
-    } else {
-      try {
-        localStorage.removeItem('prospectos_user');
       } catch {}
     }
   }, [currentUser]);

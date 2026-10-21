@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
-const DB_FILE = path.join(process.cwd(), 'db.json');
+const isVercel = Boolean(process.env.VERCEL || process.env.NOW_REGION);
+const DB_FILE = isVercel ? path.join('/tmp', 'db.json') : path.join(process.cwd(), 'db.json');
 
 export interface User {
   id: string;
@@ -212,8 +213,19 @@ export class DB {
   private static load(): DatabaseSchema {
     try {
       if (!fs.existsSync(DB_FILE)) {
-        fs.writeFileSync(DB_FILE, JSON.stringify(getEmptyDb(), null, 2), 'utf-8');
-        return getEmptyDb();
+        const rootDb = path.join(process.cwd(), 'db.json');
+        if (isVercel && fs.existsSync(rootDb)) {
+          try {
+            const seedRaw = fs.readFileSync(rootDb, 'utf-8');
+            fs.writeFileSync(DB_FILE, seedRaw, 'utf-8');
+            return JSON.parse(seedRaw);
+          } catch {}
+        }
+        const empty = getEmptyDb();
+        try {
+          fs.writeFileSync(DB_FILE, JSON.stringify(empty, null, 2), 'utf-8');
+        } catch {}
+        return empty;
       }
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
       return JSON.parse(raw);
